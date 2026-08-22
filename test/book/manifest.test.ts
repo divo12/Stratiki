@@ -117,6 +117,19 @@ describe("WorkspaceManifest.parse", () => {
     }
   });
 
+  test("rejects duplicate requirement ids so coverage cannot double-count", () => {
+    expect(() =>
+      WorkspaceManifest.parse({
+        name: "Acme",
+        requirements: [
+          { description: "a", id: "dup", sectionId: "u1-purpose" },
+          { description: "b", id: "dup", sectionId: "u2-metrics" },
+        ],
+        version: 1,
+      }),
+    ).toThrow(/duplicate requirement ids: dup/u);
+  });
+
   test("error message aggregates every issue with its path", () => {
     try {
       WorkspaceManifest.parse({

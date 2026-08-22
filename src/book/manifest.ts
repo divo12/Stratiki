@@ -79,10 +79,22 @@ export class WorkspaceManifest {
   static parse(value: unknown): WorkspaceManifest {
     const result = manifestSchema.safeParse(value);
     if (!result.success) {
-      const issues = result.error.issues
-        .map((issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`)
-        .join("; ");
-      throw new BookManifestError(`Invalid book manifest: ${issues}`);
+      throw new BookManifestError(formatIssues(result.error.issues));
+    }
+
+    // Requirement ids must be unique or later coverage aggregation would
+    // double-count slots that are actually the same knowledge gap.
+    const idCounts = new Map<string, number>();
+    for (const requirement of result.data.requirements) {
+      idCounts.set(requirement.id, (idCounts.get(requirement.id) ?? 0) + 1);
+    }
+    const duplicates = [...idCounts.entries()]
+      .filter(([, count]) => count > 1)
+      .map(([id]) => id);
+    if (duplicates.length > 0) {
+      throw new BookManifestError(
+        `Invalid book manifest: duplicate requirement ids: ${duplicates.join(", ")}`,
+      );
     }
 
     return new WorkspaceManifest(result.data, result.data.requirements);
@@ -152,3 +164,11 @@ export class WorkspaceManifest {
 }
 
 export class BookManifestError extends Error {}
+
+function formatIssues(issues: z.ZodError["issues"]): string {
+  const formatted = issues
+    .map((issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`)
+    .join("; ");
+
+  return `Invalid book manifest: ${formatted}`;
+}

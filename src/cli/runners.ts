@@ -94,7 +94,8 @@ export async function runVisualizeCommand(
 
 export async function runCronCommand(
   command: Extract<CliCommand, { kind: "cron" }>,
-): Promise<void> {  try {
+): Promise<void> {
+  try {
     const config = await readOpenWikiOnboardingConfig();
 
     if (command.action !== "list") {
@@ -383,18 +384,20 @@ export function writePrintErrorDiagnostics(error: unknown): void {
 export async function runBookCommand(
   command: Extract<CliCommand, { kind: "book" }>,
 ): Promise<void> {
-  const manifestPath = path.join(process.cwd(), "openwiki", BOOK_MANIFEST_FILENAME);
+  const manifestPath = path.join(
+    process.cwd(),
+    "openwiki",
+    BOOK_MANIFEST_FILENAME,
+  );
 
   if (!command.force) {
-    try {
-      await readFile(manifestPath, "utf8");
+    const exists = await manifestExists(manifestPath);
+    if (exists) {
       process.stderr.write(
         `A book manifest already exists at ${manifestPath}. Use --force to replace it.\n`,
       );
       process.exitCode = 1;
       return;
-    } catch {
-      // No existing manifest; proceed with creation.
     }
   }
 
@@ -409,6 +412,29 @@ export async function runBookCommand(
   const grouped = manifest.requirementsBySection();
   for (const sectionId of BOOK_SECTIONS) {
     const count = grouped[sectionId].length;
-    process.stdout.write(`  ${sectionId}: ${count} coverage requirement${count === 1 ? "" : "s"}\n`);
+    process.stdout.write(
+      `  ${sectionId}: ${count} coverage requirement${count === 1 ? "" : "s"}\n`,
+    );
+  }
+}
+
+/**
+ * True only when a readable file exists at the path. Any other read failure
+ * (permissions, a directory at the path) rethrows so it surfaces as a real
+ * error instead of silently allowing an overwrite attempt.
+ */
+async function manifestExists(manifestPath: string): Promise<boolean> {
+  try {
+    await readFile(manifestPath, "utf8");
+    return true;
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      (error as NodeJS.ErrnoException).code === "ENOENT"
+    ) {
+      return false;
+    }
+    throw error;
   }
 }
