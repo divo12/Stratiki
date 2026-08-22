@@ -1192,7 +1192,7 @@ export const helpContent: HelpContent = {
     {
       label: "--update",
       description:
-        "Update existing OpenWiki documentation. Defaults to code mode; use personal to update the local personal brain.",
+        "Update existing Stratiki documentation. Defaults to code mode; use personal to update the local personal brain.",
     },
     {
       label: "--mode <personal|code>",

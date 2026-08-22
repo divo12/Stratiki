@@ -49,7 +49,7 @@ Generate a wiki for the current repository. The first run walks you through pick
 openwiki --init
 ```
 
-Running `openwiki --init` again replaces the existing generated repository wiki and Claims with a brand-new generation. OpenWiki preserves the user-authored `openwiki/INSTRUCTIONS.md` brief and restores the previous wiki if generation fails or is cancelled.
+Running `stratiki --init` again replaces the existing generated repository wiki and Claims with a brand-new generation. Stratiki preserves the user-authored `openwiki/INSTRUCTIONS.md` brief and restores the previous wiki if generation fails or is cancelled.
 
 Keep it current automatically by adding a scheduled CI job that opens a docs PR whenever the wiki changes:
 
