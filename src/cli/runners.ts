@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import {
   configureAuthProvider,
@@ -8,6 +9,8 @@ import { startNgrokTunnel } from "../auth/ngrok.js";
 import { formatAuthProviderList, runOAuthAuth } from "../auth/oauth.js";
 import { createOpenWikiThreadId, runOpenWikiAgent } from "../agent/index.js";
 import type { OpenWikiRunEvent, OpenWikiRunOptions } from "../agent/types.js";
+import { BOOK_SECTIONS } from "../book/types.js";
+import { BOOK_MANIFEST_FILENAME, WorkspaceManifest } from "../book/manifest.js";
 import { resolveConfiguredProvider } from "../config/constants.js";
 import {
   ensureCodeModeRepoSetup,
@@ -91,8 +94,7 @@ export async function runVisualizeCommand(
 
 export async function runCronCommand(
   command: Extract<CliCommand, { kind: "cron" }>,
-): Promise<void> {
-  try {
+): Promise<void> {  try {
     const config = await readOpenWikiOnboardingConfig();
 
     if (command.action !== "list") {
@@ -371,5 +373,42 @@ export function writePrintErrorDiagnostics(error: unknown): void {
 
   for (const diagnostic of diagnostics) {
     process.stderr.write(`${diagnostic.label}: ${diagnostic.value}\n`);
+  }
+}
+
+/**
+ * Seeds the workspace System Book manifest at openwiki/book.config.json.
+ * Refuses to overwrite an existing manifest unless --force is passed.
+ */
+export async function runBookCommand(
+  command: Extract<CliCommand, { kind: "book" }>,
+): Promise<void> {
+  const manifestPath = path.join(process.cwd(), "openwiki", BOOK_MANIFEST_FILENAME);
+
+  if (!command.force) {
+    try {
+      await readFile(manifestPath, "utf8");
+      process.stderr.write(
+        `A book manifest already exists at ${manifestPath}. Use --force to replace it.\n`,
+      );
+      process.exitCode = 1;
+      return;
+    } catch {
+      // No existing manifest; proceed with creation.
+    }
+  }
+
+  const workspaceName =
+    command.name ?? path.basename(process.cwd()).replace(/[-_]+/gu, " ").trim();
+
+  const manifest = WorkspaceManifest.createDefault(workspaceName);
+  await manifest.save(manifestPath);
+
+  process.stdout.write(`Created book manifest at ${manifestPath}\n`);
+  process.stdout.write(`Workspace: ${manifest.name}\n`);
+  const grouped = manifest.requirementsBySection();
+  for (const sectionId of BOOK_SECTIONS) {
+    const count = grouped[sectionId].length;
+    process.stdout.write(`  ${sectionId}: ${count} coverage requirement${count === 1 ? "" : "s"}\n`);
   }
 }
