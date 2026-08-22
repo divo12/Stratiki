@@ -1,4 +1,4 @@
-import { readFile, unlink } from "node:fs/promises";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 /**
@@ -89,7 +89,6 @@ function isLeaseContents(value: unknown): value is LeaseContents {
 }
 
 async function mkdirAndWrite(filePath: string, contents: LeaseContents): Promise<void> {
-  const { mkdir, writeFile } = await import("node:fs/promises");
   await mkdir(path.dirname(filePath), { recursive: true });
   await writeFile(filePath, `${JSON.stringify(contents, null, 2)}\n`, "utf8");
 }
