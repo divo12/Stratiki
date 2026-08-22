@@ -3,11 +3,9 @@ import ciInfo from "ci-info";
 import type { BuildChannel } from "./types.js";
 
 /**
- * The distribution channel baked into this build. Committed as `"community"`;
- * the official release pipeline rewrites this one assignment via
- * `scripts/stamp-build-channel.cjs` (driven by `OPENWIKI_BUILD_CHANNEL`) so only
- * npm-published upstream builds report `"official"`. Do not edit by hand, and
- * keep the committed value `"community"` — the stamp targets this exact line.
+ * The distribution channel baked into this build. Stratiki is a fork and does
+ * not run the upstream release pipeline, so this stays `"community"`: every
+ * Stratiki-originated telemetry event reports `"community"`.
  */
 const BUILD_CHANNEL: BuildChannel = "community";
 

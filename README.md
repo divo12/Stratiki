@@ -2,8 +2,6 @@
 
 <div align="center">
 
-<img alt="OpenWiki" src="./static/openwiki-lockup.png" width="620">
-
 ### The self-maintaining wiki. Built for agents, explored by humans.
 
 [![npm version](https://img.shields.io/npm/v/openwiki.svg?style=flat&labelColor=030710&color=1A6FB5)](https://www.npmjs.com/package/openwiki)
@@ -63,10 +61,6 @@ Keep it current automatically by adding a scheduled CI job that opens a docs PR 
 ## Coding-agent integrations
 
 OpenWiki can run inside an existing coding agent instead of launching its own model. The coding agent investigates the repository, plans and writes the documentation, and uses its native tools and subagents when helpful. OpenWiki provides the MCP lifecycle that prepares the repository, constrains the run, and deterministically finalizes indexes, provenance, setup files, and metadata.
-
-<div align="center">
-  <img alt="Codex initializes an OpenWiki for a repository." src="./static/openwiki-codex.gif" width="880">
-</div>
 
 Install the integration for your coding agent (choose one):
 
@@ -134,10 +128,6 @@ Turn any wiki into an interactive node graph with a live, side-by-side Markdown 
 ```sh
 openwiki visualize
 ```
-
-<div align="center">
-  <img alt="The OpenWiki visualizer: an interactive node graph beside a live Markdown reader." src="./static/visualizer.gif" width="880">
-</div>
 
 This serves `./openwiki` on a local loopback address (`127.0.0.1`, never exposed on the network) and opens your browser to the graph. Edits to the wiki files are picked up automatically while the server runs. Pass a path to visualize a different directory, `--port <port>` to choose the port (it increments on conflict; default `4321`), and `--no-open` to leave the browser alone:
 

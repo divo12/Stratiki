@@ -32,7 +32,7 @@ function ingestionResult(): OpenWikiIngestionResult {
         status: "error",
       },
     ],
-  } as OpenWikiIngestionResult;
+  };
 }
 
 describe("IngestionSummary", () => {

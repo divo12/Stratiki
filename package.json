@@ -38,7 +38,6 @@
     "openwiki": "node dist/cli/cli.js",
     "stratiki": "node dist/cli/cli.js",
     "build": "tsc -p tsconfig.json && tsc -p tsconfig.client.json && node scripts/copy-visualize-assets.cjs",
-    "changeset:version": "changeset version",
     "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
     "coverage": "vitest run --coverage",
     "dev": "tsx src/cli/cli.tsx",
@@ -53,8 +52,6 @@
     "postbuild": "node -e \"require('fs').chmodSync('dist/cli/cli.js', 0o755)\"",
     "prebuild": "pnpm run clean",
     "prepack": "pnpm run build",
-    "release": "pnpm run stamp:channel && pnpm run build && changeset publish",
-    "stamp:channel": "node scripts/stamp-build-channel.cjs",
     "start": "node dist/cli/cli.js",
     "test": "pnpm run typecheck && pnpm run build && pnpm run coverage",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.client.json"
@@ -99,8 +96,6 @@
     }
   },
   "devDependencies": {
-    "@changesets/changelog-github": "0.7.0",
-    "@changesets/cli": "2.31.1",
     "@eslint/js": "^10.0.1",
     "@types/better-sqlite3": "^7.6.12",
     "@types/jsdom": "^28.0.3",
