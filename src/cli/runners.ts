@@ -11,6 +11,17 @@ import { createOpenWikiThreadId, runOpenWikiAgent } from "../agent/index.js";
 import type { OpenWikiRunEvent, OpenWikiRunOptions } from "../agent/types.js";
 import { BOOK_SECTIONS } from "../book/types.js";
 import { BOOK_MANIFEST_FILENAME, WorkspaceManifest } from "../book/manifest.js";
+import { ContextIndex, renderPacket } from "../book/packet.js";
+import { EpisodeStore, type EpisodeRecord } from "../book/episode-store.js";
+import { BookLease } from "../book/lease.js";
+import { planRefresh } from "../book/refresh-planner.js";
+import { tierMaxAgeHours } from "../book/freshness.js";
+import type { FreshnessTier } from "../book/types.js";
+import { CONNECTOR_IDS, isConnectorId } from "../connectors/registry.js";
+import {
+  openWikiBookDbPath,
+  openWikiHomeDir,
+} from "../config/openwiki-home.js";
 import { resolveConfiguredProvider } from "../config/constants.js";
 import {
   ensureCodeModeRepoSetup,
@@ -378,17 +389,34 @@ export function writePrintErrorDiagnostics(error: unknown): void {
 }
 
 /**
- * Seeds the workspace System Book manifest at openwiki/book.config.json.
- * Refuses to overwrite an existing manifest unless --force is passed.
+ * Dispatches `stratiki book` subcommands: init, status, refresh, context.
  */
 export async function runBookCommand(
   command: Extract<CliCommand, { kind: "book" }>,
 ): Promise<void> {
-  const manifestPath = path.join(
-    process.cwd(),
-    "openwiki",
-    BOOK_MANIFEST_FILENAME,
-  );
+  const bookDir = path.join(process.cwd(), "openwiki");
+
+  if (command.action === "init") {
+    await initBookManifest(bookDir, command);
+    return;
+  }
+  if (command.action === "status") {
+    await printBookStatus(bookDir);
+    return;
+  }
+  if (command.action === "context") {
+    await printBookContext(bookDir, command.query ?? "");
+    return;
+  }
+
+  await refreshBook(bookDir);
+}
+
+async function initBookManifest(
+  bookDir: string,
+  command: Extract<CliCommand, { kind: "book" }>,
+): Promise<void> {
+  const manifestPath = path.join(bookDir, BOOK_MANIFEST_FILENAME);
 
   if (!command.force) {
     const exists = await manifestExists(manifestPath);
@@ -416,6 +444,145 @@ export async function runBookCommand(
       `  ${sectionId}: ${count} coverage requirement${count === 1 ? "" : "s"}\n`,
     );
   }
+}
+
+/**
+ * Prints episode-store counts plus per-source tier/staleness derived from
+ * the workspace manifest.
+ */
+async function printBookStatus(bookDir: string): Promise<void> {
+  const manifest = await loadManifestOrThrow(bookDir);
+  const store = await EpisodeStore.open(openWikiBookDbPath);
+
+  try {
+    process.stdout.write(`Workspace: ${manifest.name}\n`);
+    process.stdout.write(`Episodes stored: ${store.count()}\n`);
+
+    const latestByConnector = new Map<string, EpisodeRecord>();
+    for (const episode of store.listRecent(500)) {
+      if (!latestByConnector.has(episode.connectorId)) {
+        latestByConnector.set(episode.connectorId, episode);
+      }
+    }
+
+    const now = new Date();
+    for (const connectorId of CONNECTOR_IDS) {
+      const tier = manifest.tierForConnector(connectorId);
+      const latest = latestByConnector.get(connectorId);
+      if (latest === undefined) {
+        process.stdout.write(`  ${connectorId} [${tier}]: never pulled\n`);
+        continue;
+      }
+
+      const ageHours =
+        (now.getTime() - Date.parse(latest.ingestTimeIso)) / (60 * 60 * 1000);
+      const staleMarker = ageHours >= tierMaxAgeHours(tier) ? " STALE" : "";
+      process.stdout.write(
+        `  ${connectorId} [${tier}]: last ingest ${latest.ingestTimeIso} (${ageHours.toFixed(1)}h ago)${staleMarker}\n`,
+      );
+    }
+  } finally {
+    store.close();
+  }
+}
+
+/**
+ * Plans the refresh from the episode store and runs ingestion for due
+ * sources under a single-writer lease so concurrent refreshes cannot
+ * interleave wiki edits.
+ */
+async function refreshBook(bookDir: string): Promise<void> {
+  const leasePath = path.join(openWikiHomeDir, "refresh.lock");
+  const lease = BookLease.at(leasePath);
+  const acquired = await lease.acquire();
+
+  if (acquired.outcome === "held-by-other") {
+    process.stderr.write(
+      `Another refresh holds the lease (owner ${acquired.holder.owner}, acquired ${acquired.holder.acquiredAtIso}).\n`,
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  try {
+    const manifest = await loadManifestOrThrow(bookDir);
+    const latestByConnector = new Map<string, EpisodeRecord>();
+    const store = await EpisodeStore.open(openWikiBookDbPath);
+    try {
+      for (const episode of store.listRecent(1000)) {
+        if (!latestByConnector.has(episode.connectorId)) {
+          latestByConnector.set(episode.connectorId, episode);
+        }
+      }
+    } finally {
+      store.close();
+    }
+
+    const tiers: Record<string, FreshnessTier> = {};
+    for (const connectorId of CONNECTOR_IDS) {
+      tiers[connectorId] = manifest.tierForConnector(connectorId);
+    }
+    const plan = planRefresh(tiers, latestByConnector);
+
+    if (plan.due.length === 0) {
+      process.stdout.write("All sources are within their freshness windows.\n");
+      return;
+    }
+
+    process.stdout.write(
+      `Refreshing ${plan.due.length} source(s); deferring ${plan.deferred.length}.\n`,
+    );
+    for (const decision of plan.due) {
+      process.stdout.write(
+        `  -> ${decision.entry.connectorId} [${decision.entry.tier}] (${decision.entry.reason})\n`,
+      );
+    }
+
+    for (const decision of plan.due) {
+      const connectorId = decision.entry.connectorId;
+      if (!isConnectorId(connectorId)) {
+        process.stderr.write(
+          `Skipping unknown connector in refresh plan: ${connectorId}\n`,
+        );
+        continue;
+      }
+      process.stdout.write(`Running ingestion for ${connectorId}...\n`);
+      try {
+        await runOpenWikiIngestion(process.cwd(), { target: connectorId });
+      } catch (error) {
+        process.stderr.write(
+          `Ingestion failed for ${connectorId}: ${getErrorMessage(error)}\n`,
+        );
+        process.exitCode = 1;
+      }
+    }
+  } finally {
+    await lease.release();
+  }
+}
+
+/** Prints a deterministic context packet for a query over the local book. */
+async function printBookContext(bookDir: string, query: string): Promise<void> {
+  if (query.trim().length === 0) {
+    process.stderr.write(
+      "A search query is required, e.g. stratiki book context deploy pipeline.\n",
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  const index = await ContextIndex.buildFromDirectory(bookDir);
+  try {
+    process.stdout.write(renderPacket(query, index.search(query)));
+  } finally {
+    index.close();
+  }
+}
+
+async function loadManifestOrThrow(
+  bookDir: string,
+): Promise<WorkspaceManifest> {
+  return WorkspaceManifest.load(path.join(bookDir, BOOK_MANIFEST_FILENAME));
 }
 
 /**
