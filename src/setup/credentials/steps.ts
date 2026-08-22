@@ -1145,6 +1145,21 @@ export function normalizeLocalPath(value: string): string {
   return path.resolve(trimmedValue);
 }
 
+/**
+ * Source ids whose onboarding flow collects a free-text goal and derives the
+ * connector config statically, instead of running an OAuth flow or asking for
+ * a filesystem path.
+ */
+export function isStaticConfigSourceId(sourceId: ConnectorId): boolean {
+  return (
+    sourceId === "github" ||
+    sourceId === "hackernews" ||
+    sourceId === "reddit" ||
+    sourceId === "rss" ||
+    sourceId === "web-search"
+  );
+}
+
 export function getStaticSourceConfig(
   sourceId: ConnectorId,
   query: string,
@@ -1162,6 +1177,36 @@ export function getStaticSourceConfig(
       searchDepth: "basic",
       timeRange: "day",
       topic: "general",
+    };
+  }
+
+  if (sourceId === "github") {
+    return {
+      enabled: true,
+      includeCommits: true,
+      includeIssues: true,
+      includePullRequests: true,
+      maxPerRepo: 30,
+      repos: [],
+    };
+  }
+
+  if (sourceId === "reddit") {
+    return {
+      enabled: true,
+      includeStickied: false,
+      maxItemsPerSource: 25,
+      queries,
+      sort: "new",
+      subreddits: [],
+    };
+  }
+
+  if (sourceId === "rss") {
+    return {
+      enabled: true,
+      feeds: [],
+      maxItemsPerFeed: 30,
     };
   }
 

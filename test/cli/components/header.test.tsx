@@ -36,7 +36,7 @@ describe("Header", () => {
     );
 
     const frame = plain(lastFrame());
-    expect(frame).toContain("OpenWiki");
+    expect(frame).toContain("Stratiki");
     expect(frame).toContain("provider:");
     expect(frame).toContain("model:");
     expect(frame).toContain("my-model-id");

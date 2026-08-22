@@ -34,7 +34,7 @@ describe("renderFirstRunNoticeText", () => {
     const text = renderFirstRunNoticeText(false);
 
     expect(text).not.toContain(esc);
-    expect(text).toContain("OpenWiki telemetry");
+    expect(text).toContain("Stratiki telemetry");
   });
 
   test("color form wraps the block in a gray SGR pair", () => {
@@ -58,7 +58,7 @@ describe("FirstRunNotice", () => {
     const { lastFrame } = render(<FirstRunNotice />);
     const frame = plain(lastFrame());
 
-    expect(frame).toContain("OpenWiki");
+    expect(frame).toContain("Stratiki");
     expect(frame).toContain("telemetry");
     // The body copy is single-sourced from telemetry/config.
     expect(frame).toContain(FIRST_RUN_NOTICE_BODY.slice(0, 20));

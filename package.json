@@ -1,18 +1,18 @@
 {
-  "name": "openwiki",
+  "name": "stratiki",
   "version": "0.3.3",
-  "description": "A CLI that uses a DeepAgents documentation agent to generate and maintain an OpenWiki for a codebase.",
+  "description": "A CLI that uses a DeepAgents documentation agent to generate and maintain a project or local knowledge wiki. A Stratiki fork of langchain-ai/openwiki, tracking upstream for changes.",
   "license": "MIT",
   "type": "module",
   "engines": {
     "node": ">=22"
   },
   "bin": {
-    "openwiki": "./dist/cli/cli.js"
+    "stratiki": "./dist/cli/cli.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/langchain-ai/openwiki.git"
+    "url": "git+https://github.com/divo12/openwiki.git"
   },
   "bugs": {
     "url": "https://github.com/langchain-ai/openwiki/issues"
@@ -36,6 +36,7 @@
   ],
   "scripts": {
     "openwiki": "node dist/cli/cli.js",
+    "stratiki": "node dist/cli/cli.js",
     "build": "tsc -p tsconfig.json && tsc -p tsconfig.client.json && node scripts/copy-visualize-assets.cjs",
     "changeset:version": "changeset version",
     "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",

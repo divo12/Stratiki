@@ -35,18 +35,24 @@ export const ONBOARDING_TEMPLATES = [
     sourceIds: [
       "custom-mcp",
       "git-repo",
+      "github",
       "google",
       "notion",
       "web-search",
       "hackernews",
+      "reddit",
+      "rss",
       "x",
     ],
     suggestedSources: [
       "Gmail",
       "Notion",
+      "GitHub",
       "Custom MCP",
       "Web Search (Tavily)",
       "Hacker News",
+      "Reddit",
+      "RSS feeds",
       "X/Twitter",
     ],
     suggestedGoal:
@@ -203,6 +209,27 @@ export const SOURCE_OPTIONS = [
     ],
   },
   {
+    displayName: "GitHub",
+    examples: [
+      "Track recent commits, issues, and pull requests across our repositories.",
+      "Watch upstream repos for releases and breaking changes.",
+    ],
+    id: "github",
+    instructions: [
+      "List the GitHub repositories to watch as owner/name on the next screen.",
+      "A GITHUB_TOKEN or GH_TOKEN is optional but recommended for private repos and higher rate limits.",
+      "Paste an optional token below; it is saved to the local environment file.",
+    ],
+    secretInputs: [
+      {
+        envKey: "GITHUB_TOKEN",
+        label: "GitHub personal access token (optional)",
+        optional: true,
+        secret: true,
+      },
+    ],
+  },
+  {
     displayName: "Hacker News",
     examples: [
       "Monitor threads about AI agents, evals, infrastructure, and startups.",
@@ -213,6 +240,34 @@ export const SOURCE_OPTIONS = [
       "No account setup is required for Hacker News.",
       "OpenWiki uses public Hacker News feed and search APIs.",
       "Describe the topics, keywords, users, or story types OpenWiki should watch on the next screen.",
+    ],
+    secretInputs: [],
+  },
+  {
+    displayName: "Reddit",
+    examples: [
+      "Follow new posts in subreddits for our stack and market niche.",
+      "Search Reddit for mentions of our product category.",
+    ],
+    id: "reddit",
+    instructions: [
+      "No account setup is required for Reddit.",
+      "Stratiki uses Reddit's public JSON API with a descriptive user agent.",
+      "Describe the subreddits or search queries to watch on the next screen.",
+    ],
+    secretInputs: [],
+  },
+  {
+    displayName: "RSS feeds",
+    examples: [
+      "Track company blogs, changelogs, status pages, and competitor news.",
+      "Follow engineering blogs for architecture insights.",
+    ],
+    id: "rss",
+    instructions: [
+      "No account setup is required for RSS.",
+      "Collect the http(s) feed URLs to follow; edit them later in the rss connector config.",
+      "Both RSS 2.0 and Atom feeds are supported.",
     ],
     secretInputs: [],
   },

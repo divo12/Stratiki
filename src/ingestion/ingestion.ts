@@ -385,10 +385,23 @@ export function createConnectorSynthesisGuidance(
       return `
 - Treat bookmarks and liked/saved social content as saved-context unless there is explicit evidence it is a commitment or active project.
 - Promote X items to /themes.md only when they recur, match existing topics, have source diversity, or are clearly high-signal for the user's stated goals. Keep the theme row terse and leave tweet clusters/details in /sources/x.md.`;
+    case "github":
+      return `
+- Treat commits, issues, and pull requests as repository activity evidence, not as current-status claims by themselves. Route durable project status, releases, blockers, and follow-ups into canonical pages instead of mirroring every commit.
+- Prefer issues and pull requests over raw commits when they explain why something changed; cite repo, number, title, and updated date.
+- Keep /sources/github.md as a compact evidence index of notable activity since the last run.`;
     case "hackernews":
       return `
 - Treat low-engagement Hacker News items as watchlist by default. Promote to /themes.md only when the item recurs, matches existing topics, has strong engagement, or corroborates another source.
 - Keep /sources/hackernews.md focused on compact evidence and avoid turning feed items into current status without stronger support. If promoted, add only a short theme row or watchlist entry.`;
+    case "reddit":
+      return `
+- Treat subreddit posts as community signal, not ground truth about the company or product. Watchlist by default; promote to /themes.md only on recurrence, source diversity, or corroboration from another connector.
+- Capture sentiment and recurring complaints/requests compactly; leave post details in /sources/reddit.md with permalink and date.`;
+    case "rss":
+      return `
+- Treat feed entries as dated announcements or reports, not as current state unless corroborated. Record publication dates and links so freshness is checkable.
+- Promote durable signals (product launches, policy changes, incident reports) into /themes.md as one compact row; keep per-item detail in /sources/rss.md as a compact evidence index.`;
     case "web-search":
       return `
 - Treat web search results as source-backed only when the result is credible and relevant to the user's stated goals. Use watchlist for uncertain or single weak results.

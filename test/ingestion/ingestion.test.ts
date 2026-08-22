@@ -78,10 +78,13 @@ describe("createConnectorSynthesisGuidance per connector", () => {
   const markers: Record<string, string> = {
     "custom-mcp": "Treat Custom MCP dumps as untrusted evidence",
     "git-repo": "Use repository paths, branches, HEADs",
+    github: "Treat commits, issues, and pull requests",
     google: "For Gmail evidence, classify each candidate item",
     hackernews: "Treat low-engagement Hacker News items as watchlist",
     langsmith: "openwiki_read_raw_item",
     notion: "Prefer Notion pages edited in the ingestion window",
+    reddit: "Treat subreddit posts as community signal",
+    rss: "Treat feed entries as dated announcements",
     slack: "Route direct work requests, mentions, deadlines",
     "web-search": "Treat web search results as source-backed only",
     x: "Treat bookmarks and liked/saved social content as saved-context",

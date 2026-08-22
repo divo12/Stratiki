@@ -88,6 +88,7 @@ import {
   getSourceDescriptionOptionCount,
   getSourceOption,
   getStaticSourceConfig,
+  isStaticConfigSourceId,
   getTemplateGoal,
   getTemplateSourceOptions,
   handleCronEditorInput,
@@ -2070,7 +2071,9 @@ export function useInitSetup({
 
   async function saveSelectedSourceDescription(description: string) {
     const connectorConfig =
-      selectedSourceId === "web-search" || selectedSourceId === "hackernews"
+      selectedSourceId === "web-search" ||
+      selectedSourceId === "hackernews" ||
+      isStaticConfigSourceId(selectedSourceId)
         ? getStaticSourceConfig(selectedSourceId, description)
         : sourceState.connectorConfig;
 
@@ -2352,7 +2355,7 @@ export function useInitSetup({
         setInput(getDefaultLocalGitRepoPath());
         setStep("source-path");
         return;
-      } else if (source.id === "web-search" || source.id === "hackernews") {
+      } else if (isStaticConfigSourceId(source.id)) {
         setSourceState((state) => ({
           ...state,
           connectorConfig: getStaticSourceConfig(source.id, ""),

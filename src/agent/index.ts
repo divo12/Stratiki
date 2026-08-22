@@ -1388,7 +1388,7 @@ export function createModel(
         ? { maxTokens: effectiveMaxTokens }
         : {}),
       provider: providerOnly ? { only: providerOnly } : undefined,
-      siteName: "OpenWiki",
+      siteName: "Stratiki",
       ...retryOptions,
     });
   }

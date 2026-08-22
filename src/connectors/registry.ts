@@ -1,8 +1,11 @@
 import { createGitRepoConnector } from "./sources/git-repo.js";
+import { createGithubConnector } from "./sources/github.js";
 import { createGmailConnector } from "./sources/gmail.js";
 import { createHackerNewsConnector } from "./sources/hackernews.js";
 import { createLangSmithConnector } from "./sources/langsmith/index.js";
 import { createMcpConnector } from "./sources/mcp.js";
+import { createRedditConnector } from "./sources/reddit.js";
+import { createRssConnector } from "./sources/rss.js";
 import { createSlackConnector } from "./sources/slack.js";
 import { createWebSearchConnector } from "./sources/web-search.js";
 import { createXConnector } from "./sources/x.js";
@@ -12,11 +15,14 @@ import type { ConnectorId, ConnectorRuntime } from "./types.js";
 export const CONNECTOR_IDS = [
   "custom-mcp",
   "git-repo",
+  "github",
   "notion",
   "x",
   "google",
   "web-search",
   "hackernews",
+  "reddit",
+  "rss",
   "langsmith",
   "slack",
 ] as const satisfies readonly ConnectorId[];
@@ -35,6 +41,7 @@ export function createConnectorRegistry(): Record<
       requiredEnv: [],
     }),
     "git-repo": createGitRepoConnector(),
+    github: createGithubConnector(),
     google: createGmailConnector(),
     hackernews: createHackerNewsConnector(),
     langsmith: createLangSmithConnector(),
@@ -45,6 +52,8 @@ export function createConnectorRegistry(): Record<
       id: "notion",
       requiredEnv: ["OPENWIKI_NOTION_MCP_ACCESS_TOKEN"],
     }),
+    reddit: createRedditConnector(),
+    rss: createRssConnector(),
     slack: createSlackConnector(),
     "web-search": createWebSearchConnector(),
     x: createXConnector(),

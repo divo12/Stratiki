@@ -51,7 +51,13 @@ function readOwnVersion(): string {
         readFileSync(path.join(dir, "package.json"), "utf8"),
       ) as OwnPackageJson;
 
-      if (pkg.name === "openwiki" && typeof pkg.version === "string") {
+      // Accept both names: this fork's own manifest ("stratiki") and an
+      // upstream-installed manifest ("openwiki") so the version read works
+      // from source, dist, and either install layout.
+      if (
+        (pkg.name === "stratiki" || pkg.name === "openwiki") &&
+        typeof pkg.version === "string"
+      ) {
         return pkg.version;
       }
     } catch {

@@ -12,14 +12,14 @@ import {
 import { sanitizeHeaderValue } from "../diagnostics/sanitize.js";
 import { formatCwd } from "../format.js";
 
-/** The OpenWiki ASCII wordmark shown at the top of the full header. */
+/** The Stratiki ASCII wordmark shown at the top of the full header. */
 export const OPENWIKI_LOGO_LINES = [
-  "  ___                  __        ___ _    _ ",
-  " / _ \\ _ __   ___ _ __ \\ \\      / (_) | _(_)",
-  "| | | | '_ \\ / _ \\ '_ \\ \\ \\ /\\ / /| | |/ / |",
-  "| |_| | |_) |  __/ | | | \\ V  V / | |   <| |",
-  " \\___/| .__/ \\___|_| |_|  \\_/\\_/  |_|_|\\_\\_|",
-  "      |_|",
+  "      _             _   _ _    _ ",
+  "  ___| |_ _ __ __ _| |_(_) | _(_)",
+  " / __| __| '__/ _` | __| | |/ / |",
+  " \\__ \\ |_| | | (_| | |_| |   <| |",
+  " |___/\\__|_|  \\__,_|\\__|_|_|\\_\\_|",
+  "                                 ",
 ];
 
 /** Width of the widest logo line, used to gate whether the logo fits. */
@@ -98,7 +98,7 @@ export function Header({
       <Box flexDirection="column" marginBottom={1}>
         <Text wrap="truncate">
           <Text color="cyan">{">_ "}</Text>
-          <Text bold>OpenWiki</Text>{" "}
+          <Text bold>Stratiki</Text>{" "}
           <Text color="gray">v{OPENWIKI_VERSION}</Text>{" "}
           <Text color="gray">provider: </Text>
           <Text color="white">{displayProvider}</Text>{" "}
@@ -151,7 +151,7 @@ export function Header({
       >
         <Text>
           <Text color="cyan">{">_ "}</Text>
-          <Text bold>OpenWiki</Text>{" "}
+          <Text bold>Stratiki</Text>{" "}
           <Text color="gray">v{OPENWIKI_VERSION}</Text>{" "}
           <Text color="gray">agent docs for codebases</Text>
         </Text>

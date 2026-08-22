@@ -205,7 +205,7 @@ async function registerMcpOAuthClient(
 
   const registrationResponse = await fetch(registrationEndpoint, {
     body: JSON.stringify({
-      client_name: "OpenWiki",
+      client_name: "Stratiki",
       grant_types: ["authorization_code", "refresh_token"],
       redirect_uris: [redirectUri],
       response_types: ["code"],

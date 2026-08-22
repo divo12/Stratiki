@@ -60,11 +60,11 @@ describe("parseCommand — help", () => {
     const helpText = getHelpText();
 
     expect(helpText).toContain(
-      "openwiki ingest <source|source-instance|all> [--scheduled] [--print] [--modelId <id>]",
+      "stratiki ingest <source|source-instance|all> [--scheduled] [--print] [--modelId <id>]",
     );
     expect(helpText).toContain("--scheduled");
     expect(helpText).toContain("scheduled-only ingestion");
-    expect(helpText).toContain("openwiki ingest all --scheduled --print");
+    expect(helpText).toContain("stratiki ingest all --scheduled --print");
   });
 
   test("help documents the output language option", () => {
@@ -959,6 +959,6 @@ describe("getHelpText — development sections", () => {
 
     expect(helpText).toContain("Development Options");
     expect(helpText).toContain("--dry-run");
-    expect(helpText).toContain("openwiki --dry-run");
+    expect(helpText).toContain("stratiki --dry-run");
   });
 });

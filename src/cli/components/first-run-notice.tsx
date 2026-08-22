@@ -38,7 +38,7 @@ export function wrapText(text: string, width: number): string[] {
  * when redirected so a captured log stays free of escape codes.
  */
 export function renderFirstRunNoticeText(color: boolean): string {
-  const label = "OpenWiki telemetry";
+  const label = "Stratiki telemetry";
   const width = FIRST_RUN_NOTICE_WIDTH;
   const topRule = `─── ${label} ${"─".repeat(Math.max(3, width - label.length - 5))}`;
   const block = [
@@ -74,7 +74,7 @@ export function FirstRunNotice() {
     >
       <Text>
         <Text bold color="cyan">
-          OpenWiki
+          Stratiki
         </Text>{" "}
         <Text color="gray">telemetry</Text>
       </Text>

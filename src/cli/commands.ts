@@ -945,8 +945,8 @@ function parseRunCommand(
     }
 
     // A mode word in the first positional slot selects the mode even when
-    // flags precede it (e.g. `openwiki --print code --update`), matching the
-    // `openwiki code ...` form. Otherwise it would silently become the user
+    // flags precede it (e.g. `stratiki --print code --update`), matching the
+    // `stratiki code ...` form. Otherwise it would silently become the user
     // message and the run would target the default personal wiki.
     if (
       isOpenWikiRunMode(arg) &&
@@ -1078,107 +1078,107 @@ export function commandLoadsEnvironment(command: CliCommand): boolean {
 }
 
 export const helpContent: HelpContent = {
-  title: "OpenWiki",
+  title: "Stratiki",
   description:
     "Run an agent that generates and maintains a project or local knowledge wiki.",
   usage: [
-    "openwiki [--init|--update] [message]",
-    "openwiki code [--init|--update] [message]",
-    "openwiki personal [--init|--update] [message]",
-    "openwiki --mode <personal|code> [--init|--update] [message]",
-    "openwiki [--language <locale>] [--init|--update] [message]",
-    "openwiki [--modelId <model>]",
-    "openwiki [--modelId <model>] [message]",
-    "openwiki --update [message]",
-    "openwiki auth <provider>",
-    "openwiki auth configure <provider> [--force]",
-    "openwiki auth tools <provider>",
-    "openwiki ingest <source|source-instance|all> [--scheduled] [--print] [--modelId <id>]",
-    "openwiki cron list",
-    "openwiki cron pause all",
-    "openwiki cron resume all",
-    "openwiki cron delete all",
-    "openwiki ngrok start [url] [--port <port>]",
-    "openwiki visualize [path] [--port <port>] [--no-open] [--export <dir>]",
-    "openwiki integrations list [--project [path]]",
-    `openwiki integrations install <${formatSupportedHostTargets("|")}> [--force] [--project [path]]`,
-    `openwiki integrations uninstall <${formatSupportedHostTargets("|")}> [--project [path]]`,
+    "stratiki [--init|--update] [message]",
+    "stratiki code [--init|--update] [message]",
+    "stratiki personal [--init|--update] [message]",
+    "stratiki --mode <personal|code> [--init|--update] [message]",
+    "stratiki [--language <locale>] [--init|--update] [message]",
+    "stratiki [--modelId <model>]",
+    "stratiki [--modelId <model>] [message]",
+    "stratiki --update [message]",
+    "stratiki auth <provider>",
+    "stratiki auth configure <provider> [--force]",
+    "stratiki auth tools <provider>",
+    "stratiki ingest <source|source-instance|all> [--scheduled] [--print] [--modelId <id>]",
+    "stratiki cron list",
+    "stratiki cron pause all",
+    "stratiki cron resume all",
+    "stratiki cron delete all",
+    "stratiki ngrok start [url] [--port <port>]",
+    "stratiki visualize [path] [--port <port>] [--no-open] [--export <dir>]",
+    "stratiki integrations list [--project [path]]",
+    `stratiki integrations install <${formatSupportedHostTargets("|")}> [--force] [--project [path]]`,
+    `stratiki integrations uninstall <${formatSupportedHostTargets("|")}> [--project [path]]`,
   ],
   commands: [
     {
-      label: "openwiki code",
+      label: "stratiki code",
       description:
         "Run OpenWiki for the current repository, writing docs under repo openwiki/ and using GitHub Actions for recurrence.",
     },
     {
-      label: "openwiki personal",
+      label: "stratiki personal",
       description: `Run OpenWiki as your local personal brain over configured sources, writing to ${openWikiLocalWikiDisplayPath}.`,
     },
     {
-      label: "openwiki",
+      label: "stratiki",
       description:
-        "Open the interactive OpenWiki code chat for the current repository.",
+        "Open the interactive Stratiki code chat for the current repository.",
     },
     {
-      label: "openwiki auth <provider>",
+      label: "stratiki auth <provider>",
       description:
         "Authenticate, create connector config, and discover MCP tools when available.",
     },
     {
-      label: "openwiki auth configure <provider>",
+      label: "stratiki auth configure <provider>",
       description:
         "Create local connector config that references saved auth env vars.",
     },
     {
-      label: "openwiki auth tools <provider>",
+      label: "stratiki auth tools <provider>",
       description: "List available MCP tools for a configured auth provider.",
     },
     {
-      label: "openwiki ingest <source|source-instance|all>",
+      label: "stratiki ingest <source|source-instance|all>",
       description:
         "Run ingestion and wiki update runs for one connector, one source instance, or all configured sources.",
     },
     {
-      label: "openwiki cron list",
+      label: "stratiki cron list",
       description: "List saved connector schedules and local launchd status.",
     },
     {
-      label: "openwiki cron pause all",
+      label: "stratiki cron pause all",
       description:
         "Pause saved connector schedules and reconcile the Mac wake window.",
     },
     {
-      label: "openwiki cron resume all",
+      label: "stratiki cron resume all",
       description:
         "Resume paused connector schedules and reconcile the Mac wake window.",
     },
     {
-      label: "openwiki cron delete all",
+      label: "stratiki cron delete all",
       description:
         "Delete saved connector schedules and remove stale local schedule files.",
     },
     {
-      label: "openwiki ngrok start [url]",
+      label: "stratiki ngrok start [url]",
       description:
         "Start an ngrok tunnel for Slack OAuth, optionally using a fixed HTTPS URL.",
     },
     {
-      label: "openwiki visualize [path] [--export <dir>]",
+      label: "stratiki visualize [path] [--export <dir>]",
       description:
         "Serve a live graph and reader, or export a static graph for web hosting (defaults to ./openwiki).",
     },
     {
-      label: "openwiki integrations list [--project [path]]",
+      label: "stratiki integrations list [--project [path]]",
       description:
         "Show user-level OpenWiki installation status, or project status with --project.",
     },
     {
-      label: "openwiki integrations install <host> [--project [path]]",
+      label: "stratiki integrations install <host> [--project [path]]",
       description:
         "Install the OpenWiki skill and MCP config globally, or into one project with --project.",
     },
     {
-      label: "openwiki integrations uninstall <host> [--project [path]]",
+      label: "stratiki integrations uninstall <host> [--project [path]]",
       description:
         "Safely remove a global integration, or a project integration with --project.",
     },
@@ -1249,39 +1249,39 @@ export const helpContent: HelpContent = {
     },
   ],
   examples: [
-    "openwiki",
-    "openwiki --init",
-    "openwiki personal --init",
-    "openwiki code --init",
-    "openwiki --update",
-    "openwiki --update --mode personal",
+    "stratiki",
+    "stratiki --init",
+    "stratiki personal --init",
+    "stratiki code --init",
+    "stratiki --update",
+    "stratiki --update --mode personal",
     'openwiki "What can you do?"',
     'openwiki -p "Summarize what OpenWiki can do"',
-    "openwiki --modelId gpt-5.5",
+    "stratiki --modelId gpt-5.5",
     'openwiki --update --modelId gpt-5.5 "Please document the API routes first"',
     'openwiki personal --update "Refresh the wiki from configured connectors"',
-    "openwiki ingest all",
-    "openwiki ingest all --scheduled --print",
-    "openwiki ingest web-search",
-    "openwiki ingest web-search-2",
-    "openwiki cron list",
-    "openwiki cron pause all",
-    "openwiki cron resume all",
-    "openwiki cron delete all",
-    "openwiki auth slack",
-    "openwiki auth gmail",
-    "openwiki auth notion",
-    "openwiki auth tools notion",
-    "openwiki ngrok start",
-    "openwiki ngrok start https://openwiki.ngrok.app",
-    "openwiki visualize",
-    "openwiki visualize openwiki --port 4400 --no-open",
-    "openwiki visualize openwiki --export docs/openwiki-visualizer",
-    "openwiki integrations list",
-    "openwiki integrations install codex",
-    "openwiki integrations uninstall codex",
+    "stratiki ingest all",
+    "stratiki ingest all --scheduled --print",
+    "stratiki ingest web-search",
+    "stratiki ingest web-search-2",
+    "stratiki cron list",
+    "stratiki cron pause all",
+    "stratiki cron resume all",
+    "stratiki cron delete all",
+    "stratiki auth slack",
+    "stratiki auth gmail",
+    "stratiki auth notion",
+    "stratiki auth tools notion",
+    "stratiki ngrok start",
+    "stratiki ngrok start https://stratiki.ngrok.app",
+    "stratiki visualize",
+    "stratiki visualize openwiki --port 4400 --no-open",
+    "stratiki visualize openwiki --export docs/openwiki-visualizer",
+    "stratiki integrations list",
+    "stratiki integrations install codex",
+    "stratiki integrations uninstall codex",
   ],
-  developmentExamples: ["openwiki --dry-run"],
+  developmentExamples: ["stratiki --dry-run"],
 };
 
 export function getHelpText(): string {

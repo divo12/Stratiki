@@ -831,7 +831,7 @@ export function App({ command }: AppProps) {
             value={runState.result.modelId}
           />
         ) : null}
-        <StatusLine tone="active" label="Next" value="starting openwiki" />
+        <StatusLine tone="active" label="Next" value="starting stratiki" />
       </Box>
     );
   }
@@ -942,7 +942,7 @@ export function App({ command }: AppProps) {
         <Header modelId={displayModelId} subtitle="Starting follow-up" />
         <ChatHistory runs={completedRuns} />
         {activeUserMessage ? <PromptBlock message={activeUserMessage} /> : null}
-        <StatusLine tone="active" label="Next" value="starting openwiki" />
+        <StatusLine tone="active" label="Next" value="starting stratiki" />
       </Box>
     );
   }
