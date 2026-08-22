@@ -4,6 +4,7 @@ export type ConnectorId =
   | "github"
   | "gitlab"
   | "google"
+  | "granola"
   | "hackernews"
   | "hubspot"
   | "langsmith"
@@ -16,7 +17,11 @@ export type ConnectorId =
   | "x";
 
 export type ConnectorBackend =
-  "direct-api" | "local-git" | "mcp-http" | "mcp-stdio";
+  | "direct-api"
+  | "local-git"
+  | "local-store"
+  | "mcp-http"
+  | "mcp-stdio";
 
 export type ConnectorDefinition = {
   backend: ConnectorBackend;

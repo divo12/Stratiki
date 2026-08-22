@@ -402,6 +402,10 @@ export function createConnectorSynthesisGuidance(
       return `
 - Treat issue updates as work-tracking evidence. Route launch-critical status, blockers, owners, and deadlines into /commitments.md or /themes.md with identifier, state, and owner when inferable.
 - Do not mirror every issue update; deduplicate by issue key and keep /sources/linear.md as a compact evidence index of what changed since the last run.`;
+    case "granola":
+      return `
+- Treat Granola meeting notes as high-authority evidence for decisions, commitments, and owners: route explicit decisions to /themes.md, action items to /commitments.md with Owner when inferable, and open product/design questions to source pages rather than /open-questions.md unless the user owns the question.
+- Prefer AI notes over transcript excerpts; note the meeting date so freshness is checkable. Keep /sources/granola.md as a compact evidence index of meetings read this run.`;
     case "hackernews":
       return `
 - Treat low-engagement Hacker News items as watchlist by default. Promote to /themes.md only when the item recurs, matches existing topics, has strong engagement, or corroborates another source.

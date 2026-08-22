@@ -81,6 +81,7 @@ describe("createConnectorSynthesisGuidance per connector", () => {
     github: "Treat commits, issues, and pull requests",
     gitlab: "Treat merge requests and issues as project activity",
     google: "For Gmail evidence, classify each candidate item",
+    granola: "Treat Granola meeting notes as high-authority evidence",
     hackernews: "Treat low-engagement Hacker News items as watchlist",
     hubspot: "Treat CRM records as commercial-signal evidence",
     langsmith: "openwiki_read_raw_item",

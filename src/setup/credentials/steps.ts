@@ -1154,6 +1154,7 @@ export function isStaticConfigSourceId(sourceId: ConnectorId): boolean {
   return (
     sourceId === "github" ||
     sourceId === "gitlab" ||
+    sourceId === "granola" ||
     sourceId === "hackernews" ||
     sourceId === "hubspot" ||
     sourceId === "linear" ||
@@ -1192,6 +1193,14 @@ export function getStaticSourceConfig(
       includeMergeRequests: true,
       maxPerProject: 30,
       projects: [],
+    };
+  }
+
+  if (sourceId === "granola") {
+    return {
+      enabled: true,
+      includeTranscript: false,
+      maxMeetings: 30,
     };
   }
 

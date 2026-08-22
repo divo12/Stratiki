@@ -2,6 +2,7 @@ import { createGitRepoConnector } from "./sources/git-repo.js";
 import { createGithubConnector } from "./sources/github.js";
 import { createGitLabConnector } from "./sources/gitlab.js";
 import { createGmailConnector } from "./sources/gmail.js";
+import { createGranolaConnector } from "./sources/granola.js";
 import { createHubSpotConnector } from "./sources/hubspot.js";
 import { createHackerNewsConnector } from "./sources/hackernews.js";
 import { createLangSmithConnector } from "./sources/langsmith/index.js";
@@ -20,6 +21,7 @@ export const CONNECTOR_IDS = [
   "git-repo",
   "github",
   "gitlab",
+  "granola",
   "linear",
   "hubspot",
   "notion",
@@ -50,6 +52,7 @@ export function createConnectorRegistry(): Record<
     github: createGithubConnector(),
     gitlab: createGitLabConnector(),
     google: createGmailConnector(),
+    granola: createGranolaConnector(),
     hackernews: createHackerNewsConnector(),
     hubspot: createHubSpotConnector(),
     langsmith: createLangSmithConnector(),

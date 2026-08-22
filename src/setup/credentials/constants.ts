@@ -38,6 +38,7 @@ export const ONBOARDING_TEMPLATES = [
       "github",
       "gitlab",
       "google",
+      "granola",
       "hubspot",
       "linear",
       "notion",
@@ -53,6 +54,7 @@ export const ONBOARDING_TEMPLATES = [
       "GitHub",
       "Linear",
       "GitLab",
+      "Granola meeting notes",
       "HubSpot",
       "Custom MCP",
       "Web Search (Tavily)",
@@ -295,6 +297,20 @@ export const SOURCE_OPTIONS = [
         secret: true,
       },
     ],
+  },
+  {
+    displayName: "Granola",
+    examples: [
+      "Capture meeting notes, decisions, and follow-ups from Granola.",
+      "Summarize this week's customer calls and action items.",
+    ],
+    id: "granola",
+    instructions: [
+      "Requires the Granola desktop app (macOS); notes are read from its local store.",
+      "No account or API key is required.",
+      "If discovery fails, set notesPath in the granola connector config to the cache JSON.",
+    ],
+    secretInputs: [],
   },
   {
     displayName: "Hacker News",
