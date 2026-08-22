@@ -1,8 +1,11 @@
 import { createGitRepoConnector } from "./sources/git-repo.js";
 import { createGithubConnector } from "./sources/github.js";
+import { createGitLabConnector } from "./sources/gitlab.js";
 import { createGmailConnector } from "./sources/gmail.js";
+import { createHubSpotConnector } from "./sources/hubspot.js";
 import { createHackerNewsConnector } from "./sources/hackernews.js";
 import { createLangSmithConnector } from "./sources/langsmith/index.js";
+import { createLinearConnector } from "./sources/linear.js";
 import { createMcpConnector } from "./sources/mcp.js";
 import { createRedditConnector } from "./sources/reddit.js";
 import { createRssConnector } from "./sources/rss.js";
@@ -16,6 +19,9 @@ export const CONNECTOR_IDS = [
   "custom-mcp",
   "git-repo",
   "github",
+  "gitlab",
+  "linear",
+  "hubspot",
   "notion",
   "x",
   "google",
@@ -42,9 +48,12 @@ export function createConnectorRegistry(): Record<
     }),
     "git-repo": createGitRepoConnector(),
     github: createGithubConnector(),
+    gitlab: createGitLabConnector(),
     google: createGmailConnector(),
     hackernews: createHackerNewsConnector(),
+    hubspot: createHubSpotConnector(),
     langsmith: createLangSmithConnector(),
+    linear: createLinearConnector(),
     notion: createMcpConnector({
       description:
         "Notion connector backed by the hosted Notion MCP server or another configured read-only MCP server.",

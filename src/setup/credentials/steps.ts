@@ -1153,7 +1153,10 @@ export function normalizeLocalPath(value: string): string {
 export function isStaticConfigSourceId(sourceId: ConnectorId): boolean {
   return (
     sourceId === "github" ||
+    sourceId === "gitlab" ||
     sourceId === "hackernews" ||
+    sourceId === "hubspot" ||
+    sourceId === "linear" ||
     sourceId === "reddit" ||
     sourceId === "rss" ||
     sourceId === "web-search"
@@ -1177,6 +1180,38 @@ export function getStaticSourceConfig(
       searchDepth: "basic",
       timeRange: "day",
       topic: "general",
+    };
+  }
+
+  if (sourceId === "gitlab") {
+    return {
+      baseUrl: "https://gitlab.com",
+      enabled: true,
+      includeCommits: true,
+      includeIssues: true,
+      includeMergeRequests: true,
+      maxPerProject: 30,
+      projects: [],
+    };
+  }
+
+  if (sourceId === "linear") {
+    return {
+      enabled: true,
+      includeDescription: true,
+      maxIssues: 50,
+      projects: [],
+      teams: [],
+    };
+  }
+
+  if (sourceId === "hubspot") {
+    return {
+      enabled: true,
+      includeCompanies: true,
+      includeContacts: true,
+      includeDeals: true,
+      maxRecordsPerObject: 50,
     };
   }
 

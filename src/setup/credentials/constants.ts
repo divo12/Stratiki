@@ -36,7 +36,10 @@ export const ONBOARDING_TEMPLATES = [
       "custom-mcp",
       "git-repo",
       "github",
+      "gitlab",
       "google",
+      "hubspot",
+      "linear",
       "notion",
       "web-search",
       "hackernews",
@@ -48,6 +51,9 @@ export const ONBOARDING_TEMPLATES = [
       "Gmail",
       "Notion",
       "GitHub",
+      "Linear",
+      "GitLab",
+      "HubSpot",
       "Custom MCP",
       "Web Search (Tavily)",
       "Hacker News",
@@ -225,6 +231,67 @@ export const SOURCE_OPTIONS = [
         envKey: "GITHUB_TOKEN",
         label: "GitHub personal access token (optional)",
         optional: true,
+        secret: true,
+      },
+    ],
+  },
+  {
+    displayName: "GitLab",
+    examples: [
+      "Track merge requests and issues across our GitLab groups.",
+      "Watch a self-hosted GitLab instance for release activity.",
+    ],
+    id: "gitlab",
+    instructions: [
+      "List the GitLab projects to watch as group/project on the next screen.",
+      "A GITLAB_TOKEN is optional but recommended for private projects and higher rate limits.",
+      "For self-hosted instances, set baseUrl in the gitlab connector config.",
+    ],
+    secretInputs: [
+      {
+        envKey: "GITLAB_TOKEN",
+        label: "GitLab personal access token (optional)",
+        optional: true,
+        secret: true,
+      },
+    ],
+  },
+  {
+    displayName: "Linear",
+    examples: [
+      "Follow recently updated issues for our product teams.",
+      "Track launch-critical work and blockers across teams.",
+    ],
+    id: "linear",
+    instructions: [
+      "Create a Linear API key from Settings > API.",
+      "Paste the API key below; it is saved to the local environment file.",
+      "Optionally list team keys to filter in the linear connector config.",
+    ],
+    secretInputs: [
+      {
+        envKey: "LINEAR_API_KEY",
+        label: "Linear API key",
+        secret: true,
+      },
+    ],
+  },
+  {
+    displayName: "HubSpot",
+    examples: [
+      "Track recently modified deals, companies, and contacts.",
+      "Summarize pipeline movement since the last run.",
+    ],
+    id: "hubspot",
+    instructions: [
+      "Create a HubSpot private app with crm.objects read scopes.",
+      "Paste the private app token below.",
+      "Object types and limits can be tuned in the hubspot connector config.",
+    ],
+    secretInputs: [
+      {
+        envKey: "HUBSPOT_TOKEN",
+        label: "HubSpot private app token",
         secret: true,
       },
     ],

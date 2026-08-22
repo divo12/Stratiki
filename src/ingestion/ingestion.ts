@@ -390,6 +390,18 @@ export function createConnectorSynthesisGuidance(
 - Treat commits, issues, and pull requests as repository activity evidence, not as current-status claims by themselves. Route durable project status, releases, blockers, and follow-ups into canonical pages instead of mirroring every commit.
 - Prefer issues and pull requests over raw commits when they explain why something changed; cite repo, number, title, and updated date.
 - Keep /sources/github.md as a compact evidence index of notable activity since the last run.`;
+    case "gitlab":
+      return `
+- Treat merge requests and issues as project activity evidence, not current-status claims by themselves. Route durable release, blocker, and follow-up signals into canonical pages; cite project, iid, title, and updated date.
+- Keep /sources/gitlab.md as a compact evidence index of notable activity since the last run.`;
+    case "hubspot":
+      return `
+- Treat CRM records as commercial-signal evidence. Summarize pipeline movement (stage changes, new deals, closed-won/lost) rather than listing every record; note amounts and close dates only when they change the picture.
+- Keep customer/company names out of high-level pages unless they are durable accounts worth remembering; keep per-record detail in /sources/hubspot.md with record ids and last-modified dates.`;
+    case "linear":
+      return `
+- Treat issue updates as work-tracking evidence. Route launch-critical status, blockers, owners, and deadlines into /commitments.md or /themes.md with identifier, state, and owner when inferable.
+- Do not mirror every issue update; deduplicate by issue key and keep /sources/linear.md as a compact evidence index of what changed since the last run.`;
     case "hackernews":
       return `
 - Treat low-engagement Hacker News items as watchlist by default. Promote to /themes.md only when the item recurs, matches existing topics, has strong engagement, or corroborates another source.
