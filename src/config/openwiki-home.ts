@@ -44,6 +44,7 @@ export const openWikiConversationHistoryDir = path.join(
   "conversation_history",
 );
 export const openWikiLocalWikiDir = path.join(openWikiHomeDir, "wiki");
+export const openWikiBookDbPath = path.join(openWikiHomeDir, "book.db");
 export const openWikiSkillsDir = path.join(openWikiHomeDir, "skills");
 export const openWikiConnectorsDisplayPath = `${openWikiHomeDisplayPath}/connectors`;
 export const openWikiLocalWikiDisplayPath = `${openWikiHomeDisplayPath}/wiki`;
