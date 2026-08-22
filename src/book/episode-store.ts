@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS episodes (
   ingest_time TEXT NOT NULL,
   bytes INTEGER NOT NULL,
   content TEXT NOT NULL,
+  run_id TEXT NOT NULL,
   UNIQUE (connector_id, source_ref, content_hash)
 );
 CREATE INDEX IF NOT EXISTS idx_episodes_connector ON episodes (connector_id, ingest_time);
@@ -84,7 +85,7 @@ function hashContent(content: string): string {
   return createHash("sha256").update(content).digest("hex");
 }
 
-function rowToRecord(row: EpisodeRow, runId: string): EpisodeRecord {
+function rowToRecord(row: EpisodeRow): EpisodeRecord {
   return {
     bytes: Number(row.bytes),
     connectorId: row.connector_id,
@@ -92,7 +93,7 @@ function rowToRecord(row: EpisodeRow, runId: string): EpisodeRecord {
     eventTimeIso: row.event_time,
     id: Number(row.id),
     ingestTimeIso: row.ingest_time,
-    runId,
+    runId: row.run_id,
     sourceRef: row.source_ref,
   };
 }
@@ -142,8 +143,8 @@ export class EpisodeStore {
     const contentHash = hashContent(input.content);
     const ingestTimeIso = new Date().toISOString();
     const insert = this.db.prepare(`
-INSERT INTO episodes (connector_id, source_ref, content_hash, event_time, ingest_time, bytes, content)
-VALUES (?, ?, ?, ?, ?, ?, ?)
+INSERT INTO episodes (connector_id, source_ref, content_hash, event_time, ingest_time, bytes, content, run_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (connector_id, source_ref, content_hash) DO NOTHING
 `);
     const result = insert.run(
@@ -154,12 +155,13 @@ ON CONFLICT (connector_id, source_ref, content_hash) DO NOTHING
       ingestTimeIso,
       input.bytes,
       input.content,
+      input.runId,
     );
     const outcome = Number(result.changes) > 0 ? "admitted" : "duplicate";
 
     const row = this.db
       .prepare(
-        `SELECT id, connector_id, source_ref, content_hash, event_time, ingest_time, bytes
+        `SELECT id, connector_id, source_ref, content_hash, event_time, ingest_time, run_id, bytes
 FROM episodes WHERE connector_id = ? AND source_ref = ? AND content_hash = ?`,
       )
       .get(input.connectorId, input.sourceRef, contentHash) as
@@ -170,17 +172,17 @@ FROM episodes WHERE connector_id = ? AND source_ref = ? AND content_hash = ?`,
       );
     }
 
-    return { episode: rowToRecord(row, input.runId), outcome };
+    return { episode: rowToRecord(row), outcome };
   }
 
   listRecent(limit: number): EpisodeRecord[] {
     const rows = this.db
       .prepare(
-        `SELECT id, connector_id, source_ref, content_hash, event_time, ingest_time, bytes
+        `SELECT id, connector_id, source_ref, content_hash, event_time, ingest_time, run_id, bytes
 FROM episodes ORDER BY ingest_time DESC, id DESC LIMIT ?`,
       )
       .all(limit) as unknown as EpisodeRow[];
 
-    return rows.map((row) => rowToRecord(row, "(historical)"));
+    return rows.map((row) => rowToRecord(row));
   }
 }
