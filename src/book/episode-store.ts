@@ -81,6 +81,23 @@ interface EpisodeRow {
 
 export class BookStoreError extends Error {}
 
+/**
+ * Adds columns introduced after the initial release to pre-existing episode
+ * tables. `CREATE TABLE IF NOT EXISTS` cannot alter an existing table, so
+ * stores created before a column existed need this explicit step.
+ */
+function migrateEpisodesTable(db: DatabaseSync): void {
+  const columns = (
+    db.prepare("PRAGMA table_info(episodes)").all() as unknown as {
+      name: string;
+    }[]
+  ).map((column) => column.name);
+
+  if (columns.length > 0 && !columns.includes("run_id")) {
+    db.exec("ALTER TABLE episodes ADD COLUMN run_id TEXT NOT NULL DEFAULT ''");
+  }
+}
+
 function hashContent(content: string): string {
   return createHash("sha256").update(content).digest("hex");
 }
@@ -106,6 +123,7 @@ export class EpisodeStore {
     await mkdir(path.dirname(dbPath), { recursive: true });
     const db = new DatabaseSync(dbPath);
     db.exec(SCHEMA_SQL);
+    migrateEpisodesTable(db);
     db.prepare(
       "INSERT INTO meta (key, value) VALUES ('schema_version', ?) ON CONFLICT(key) DO NOTHING",
     ).run(String(SCHEMA_VERSION));

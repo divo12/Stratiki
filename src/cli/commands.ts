@@ -144,10 +144,11 @@ export type CliCommand =
     }
   | {
       kind: "book";
-      action: "init";
+      action: "context" | "init" | "refresh" | "status";
       exitCode: 0;
       force: boolean;
       name: string | null;
+      query: string | null;
     }
   | { kind: "help"; exitCode: 0 }
   | {
@@ -717,23 +718,29 @@ function parseMcpCommand(argv: string[]): CliCommand {
 }
 
 /**
- * Parses `stratiki book init [--name <name>] [--force]`, the entrypoint that
- * seeds a workspace's System Book manifest.
+ * Parses `stratiki book` subcommands: init, status, refresh, context.
  */
 function parseBookCommand(argv: string[]): CliCommand {
-  if (argv[0] !== "init") {
+  const action = argv[0];
+  if (
+    action !== "init" &&
+    action !== "status" &&
+    action !== "refresh" &&
+    action !== "context"
+  ) {
     return {
       kind: "error",
       exitCode: 1,
       message:
-        argv[0] === undefined
-          ? "The book command requires an action. Supported actions: init."
-          : `Unknown book action: ${argv[0]}. Supported actions: init.`,
+        action === undefined
+          ? "The book command requires an action. Supported actions: init, status, refresh, context."
+          : `Unknown book action: ${action}. Supported actions: init, status, refresh, context.`,
     };
   }
 
   let force = false;
   let name: string | null = null;
+  let query: string | null = null;
   let sawName = false;
 
   for (let index = 1; index < argv.length; index += 1) {
@@ -774,16 +781,21 @@ function parseBookCommand(argv: string[]): CliCommand {
       continue;
     }
 
+    if (action === "context" && !arg.startsWith("-")) {
+      query = query === null ? arg : `${query} ${arg}`;
+      continue;
+    }
+
     return {
       kind: "error",
       exitCode: 1,
       message: arg.startsWith("-")
-        ? `Unknown option for book init: ${arg}`
-        : `Unexpected argument for book init: ${arg}`,
+        ? `Unknown option for book ${action}: ${arg}`
+        : `Unexpected argument for book ${action}: ${arg}`,
     };
   }
 
-  return { action: "init", exitCode: 0, force, kind: "book", name };
+  return { action, exitCode: 0, force, kind: "book", name, query };
 }
 
 /**
