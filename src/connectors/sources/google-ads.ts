@@ -115,7 +115,9 @@ async function ingest(
   }
 
   const lookbackDays = normalizeLookbackDays(
-    options.windowHours === undefined ? undefined : options.windowHours / 24,
+    options.windowHours === undefined
+      ? config.lookbackDays
+      : options.windowHours / 24,
   );
 
   try {
@@ -235,24 +237,27 @@ async function searchCampaignPerformance(
     );
   }
 
-  // The search stream returns a JSON array with one batch element.
+  // The search stream returns a JSON array of batch elements; flatten every
+  // batch so multi-batch responses never drop campaign-day rows.
   const batches = (await response.json()) as GoogleAdsSearchStreamResponse[];
 
-  return (batches[0]?.results ?? []).flatMap((result) => {
-    if (typeof result.campaign?.id !== "string") return [];
-    return [
-      {
-        campaignId: result.campaign.id,
-        campaignName: result.campaign.name,
-        campaignStatus: result.campaign.status,
-        clicks: toNumber(result.metrics?.clicks),
-        conversions: toNumber(result.metrics?.conversions),
-        cost: toCost(result.metrics?.costMicros),
-        date: result.segments?.date,
-        impressions: toNumber(result.metrics?.impressions),
-      },
-    ];
-  });
+  return batches.flatMap((batch) =>
+    (batch.results ?? []).flatMap((result) => {
+      if (typeof result.campaign?.id !== "string") return [];
+      return [
+        {
+          campaignId: result.campaign.id,
+          campaignName: result.campaign.name,
+          campaignStatus: result.campaign.status,
+          clicks: toNumber(result.metrics?.clicks),
+          conversions: toNumber(result.metrics?.conversions),
+          cost: toCost(result.metrics?.costMicros),
+          date: result.segments?.date,
+          impressions: toNumber(result.metrics?.impressions),
+        },
+      ];
+    }),
+  );
 }
 
 type CampaignPerformanceRow = {

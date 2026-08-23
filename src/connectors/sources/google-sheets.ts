@@ -107,7 +107,8 @@ async function ingest(
   );
 
   const exports: SheetExport[] = [];
-  for (const source of config.spreadsheets.slice(0, 20)) {
+  // Every configured range is processed; there is no silent cap.
+  for (const source of config.spreadsheets) {
     if (!isWellFormedSheetSource(source)) {
       warnings.push(`skipping malformed sheet entry ${JSON.stringify(source)}`);
       continue;
@@ -118,7 +119,7 @@ async function ingest(
         rows: await readSheetValues(
           accessToken.trim(),
           source.spreadsheetId,
-          source.range,
+          boundRange(source.range, maxRowsPerRange),
           maxRowsPerRange,
         ),
         spreadsheetId: source.spreadsheetId,
@@ -237,6 +238,37 @@ function isWellFormedSheetSource(
     typeof source.range === "string" &&
     source.range.trim().length > 0
   );
+}
+
+/**
+ * Bounds an unbounded A1 range to at most `maxRows` rows so oversized requests
+ * fail fast server-side instead of streaming the whole sheet into memory.
+ * Ranges with an explicit end row are user-bounded and passed through as-is.
+ *
+ * @param range - A1 notation range, optionally prefixed with a sheet name.
+ * @param maxRows - Maximum rows the caller will keep.
+ * @returns A1 range whose row count never exceeds `maxRows`.
+ */
+function boundRange(range: string, maxRows: number): string {
+  const separator = range.lastIndexOf("!");
+  const title = separator === -1 ? "" : range.slice(0, separator + 1);
+  const cells = range.slice(separator + 1);
+
+  const match = /^([A-Z]+)(\d*):([A-Z]+)(\d*)$/u.exec(cells.toUpperCase());
+  if (match === null) return range;
+
+  const [, startColumn, startRow, endColumn, endRow] = match;
+  if (startRow === undefined || endColumn === undefined) return range;
+
+  // Explicit end row: the user bounded their own range.
+  if (endRow !== undefined && endRow.length > 0 && startRow.length > 0) {
+    return range;
+  }
+
+  const firstRow = startRow.length > 0 ? Number.parseInt(startRow, 10) : 1;
+  if (!Number.isSafeInteger(firstRow)) return range;
+
+  return `${title}${startColumn}${firstRow}:${endColumn}${firstRow + maxRows - 1}`;
 }
 
 type SheetExport = {

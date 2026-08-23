@@ -53,14 +53,21 @@ describe("stripe connector ingestion", () => {
   test("lists recent events with bearer auth and writes a raw dump", async () => {
     process.env.STRIPE_SECRET_KEY = "rk-test";
     const home = await createTempHome();
-    const requests: string[] = [];
+    const requests: {
+      authorization: string | undefined;
+      url: string;
+    }[] = [];
     vi.stubGlobal(
       "fetch",
-      vi.fn((input: string | URL | Request) => {
+      vi.fn((input: string | URL | Request, init?: RequestInit) => {
         const url = new URL(
           input instanceof Request ? input.url : String(input),
         );
-        requests.push(url.pathname + url.search);
+        requests.push({
+          authorization:
+            new Headers(init?.headers).get("Authorization") ?? undefined,
+          url: url.pathname + url.search,
+        });
         return Promise.resolve(
           jsonResponse({
             data: [
@@ -82,8 +89,9 @@ describe("stripe connector ingestion", () => {
 
     expect(result.status).toBe("success");
     expect(result.warnings).toEqual([]);
-    expect(requests[0]).toContain("/v1/events");
-    expect(requests[0]).toContain("created%5Bgte%5D=");
+    expect(requests[0]?.authorization).toBe("Bearer rk-test");
+    expect(requests[0]?.url).toContain("/v1/events");
+    expect(requests[0]?.url).toContain("created%5Bgte%5D=");
 
     const dump = JSON.parse(
       await readFile(result.rawFiles[0] ?? "", "utf8"),
@@ -110,7 +118,7 @@ describe("stripe connector ingestion", () => {
 
     requests.length = 0;
     await connector.ingest();
-    expect(requests[0]).toContain("created%5Bgte%5D=1700000000");
+    expect(requests[0]?.url).toContain("created%5Bgte%5D=1700000000");
   });
 
   test("skips when not enabled and errors without credentials", async () => {

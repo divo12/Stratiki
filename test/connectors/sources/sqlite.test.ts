@@ -74,7 +74,7 @@ describe("sqlite connector ingestion", () => {
         rows: Record<string, unknown>[];
       }[];
     };
-    expect(dump.databasePath).toBe(path.resolve(databasePath));
+    expect(dump.databasePath).toBe("data/app.db");
     expect(dump.tables).toHaveLength(1);
     expect(dump.tables[0]?.name).toBe("projects");
     expect(dump.tables[0]?.rowCount).toBe(2);
@@ -104,6 +104,28 @@ describe("sqlite connector ingestion", () => {
       tables: { name: string }[];
     };
     expect(dump.tables.map((table) => table.name)).toEqual(["notes"]);
+  });
+
+  test("excludes virtual and shadow tables from automatic discovery", async () => {
+    const home = await createTempHome();
+    const databasePath = path.join(home, "app.db");
+    const database = new DatabaseSync(databasePath);
+    database.exec("CREATE TABLE plain (id INTEGER)");
+    database.exec("CREATE VIRTUAL TABLE documents USING fts5(title, body)");
+    database.close();
+
+    const connector = await loadConnector(home);
+    const result = await connector.ingest({
+      connectorConfig: { path: databasePath },
+    });
+
+    expect(result.status).toBe("success");
+    const dump = JSON.parse(
+      await readFile(result.rawFiles[0] ?? "", "utf8"),
+    ) as {
+      tables: { name: string }[];
+    };
+    expect(dump.tables.map((table) => table.name)).toEqual(["plain"]);
   });
 
   test("skips when not enabled and errors without a database path", async () => {

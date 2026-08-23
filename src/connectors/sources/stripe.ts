@@ -106,7 +106,7 @@ async function ingest(
   const maxEvents = normalizeMaxEvents(options.limit ?? config.maxEvents);
 
   try {
-    const events = await listRecentEvents(secretKey.trim(), {
+    const listing = await listRecentEvents(secretKey.trim(), {
       createdGte,
       eventTypes: config.eventTypes ?? [],
       maxEvents,
@@ -115,27 +115,32 @@ async function ingest(
     rawFiles.push(
       await writeRawJson("stripe", runId, "stripe-events.json", {
         createdGte: new Date(createdGte * 1000).toISOString(),
-        eventCount: events.length,
-        events,
+        eventCount: listing.events.length,
+        events: listing.events,
         fetchedAt: new Date().toISOString(),
         instanceId: options.instanceId,
         lookbackHours,
       }),
     );
 
-    const latestEventSeconds = events.reduce((latest, event) => {
-      const createdSeconds = Math.floor(
-        new Date(event.createdAt).getTime() / 1000,
-      );
+    // Advance the high-water mark only when the full requested range was
+    // drained; a capped run must resume from its original start time so
+    // unreturned older events are never skipped.
+    const latestEventSeconds = listing.drained
+      ? listing.events.reduce((latest, event) => {
+          const createdSeconds = Math.floor(
+            new Date(event.createdAt).getTime() / 1000,
+          );
 
-      return Number.isFinite(createdSeconds) && createdSeconds > latest
-        ? createdSeconds
-        : latest;
-    }, cursorSeconds ?? 0);
+          return Number.isFinite(createdSeconds) && createdSeconds > latest
+            ? createdSeconds
+            : latest;
+        }, 0)
+      : 0;
 
     return finishStripeRun({
-      message: `Fetched ${events.length} Stripe event${
-        events.length === 1 ? "" : "s"
+      message: `Fetched ${listing.events.length} Stripe event${
+        listing.events.length === 1 ? "" : "s"
       } over a ${lookbackHours}h lookback.`,
       rawFiles,
       runId,
@@ -213,22 +218,12 @@ async function listRecentEvents(
     eventTypes: string[];
     maxEvents: number;
   },
-): Promise<
-  { id: string; type: string; createdAt: string; livemode: boolean }[]
-> {
-  const events: {
-    id: string;
-    type: string;
-    createdAt: string;
-    livemode: boolean;
-  }[] = [];
+): Promise<{ drained: boolean; events: StripeEvent[] }> {
+  const events: StripeEvent[] = [];
   let startingAfter: string | undefined;
+  let drained = false;
 
-  for (
-    let page = 0;
-    page < 10 && events.length < listOptions.maxEvents;
-    page += 1
-  ) {
+  while (!drained && events.length < listOptions.maxEvents) {
     const url = new URL("/v1/events", STRIPE_API_BASE_URL);
     url.searchParams.set("created[gte]", String(listOptions.createdGte));
     url.searchParams.set("limit", "100");
@@ -274,14 +269,26 @@ async function listRecentEvents(
       const [lastEvent] = (payload.data ?? []).slice(-1);
       startingAfter =
         typeof lastEvent?.id === "string" ? lastEvent.id : undefined;
-      if (startingAfter === undefined) break;
+      if (startingAfter === undefined) {
+        drained = true;
+      }
     } else {
-      break;
+      drained = true;
     }
   }
 
-  return events.slice(0, listOptions.maxEvents);
+  return {
+    drained,
+    events: events.slice(0, listOptions.maxEvents),
+  };
 }
+
+type StripeEvent = {
+  createdAt: string;
+  id: string;
+  livemode: boolean;
+  type: string;
+};
 
 function normalizeLookbackHours(windowHours: number | undefined): number {
   const hours =
@@ -299,7 +306,7 @@ function normalizeLookbackHours(windowHours: number | undefined): number {
  * @returns Cursor seconds, or `null` when absent or malformed.
  */
 function parseCursorSeconds(cursor: string | undefined): number | null {
-  if (cursor === undefined || cursor.length === 0) return null;
+  if (cursor === undefined || !/^\d+$/u.test(cursor)) return null;
   const parsed = Number.parseInt(cursor, 10);
 
   return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;

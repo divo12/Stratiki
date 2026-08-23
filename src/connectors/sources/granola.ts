@@ -108,7 +108,11 @@ async function ingest(
 
   let meetings: GranolaMeeting[];
   try {
-    meetings = parseDocumentCache(await readFile(sourcePath, "utf8"), config, warnings);
+    meetings = parseDocumentCache(
+      await readFile(sourcePath, "utf8"),
+      config,
+      warnings,
+    );
   } catch (error) {
     return await finishGranolaRun({
       message: `Failed to read the Granola cache at ${sourcePath}: ${getErrorMessage(error)}`,
@@ -269,7 +273,9 @@ function extractDocuments(parsed: unknown): Record<string, unknown>[] | null {
 }
 
 function isPlausibleMeeting(value: unknown): boolean {
-  return isRecord(value) && (typeof value.id === "string" || isRecord(value.notes));
+  return (
+    isRecord(value) && (typeof value.id === "string" || isRecord(value.notes))
+  );
 }
 
 function parseDocumentCache(
@@ -279,7 +285,9 @@ function parseDocumentCache(
 ): GranolaMeeting[] {
   const documents = extractDocuments(JSON.parse(json));
   if (documents === null) {
-    warnings.push("The Granola cache did not contain a recognizable documents list.");
+    warnings.push(
+      "The Granola cache did not contain a recognizable documents list.",
+    );
     return [];
   }
 
@@ -305,7 +313,8 @@ function toMeeting(
     "markdown",
     "content_markdown",
   ]);
-  const title = firstString(document, ["title"]) ?? firstString(notes, ["title"]);
+  const title =
+    firstString(document, ["title"]) ?? firstString(notes, ["title"]);
   const updatedAt =
     firstString(document, ["updated_at", "updatedAt"]) ??
     firstString(notes, ["updated_at"]);
@@ -333,7 +342,9 @@ function toMeeting(
  * Transcript chunks can carry full meeting audio text; keep only a bounded
  * excerpt so one long meeting cannot dominate the dump.
  */
-function extractTranscriptExcerpt(document: Record<string, unknown>): string | undefined {
+function extractTranscriptExcerpt(
+  document: Record<string, unknown>,
+): string | undefined {
   const chunks = document.transcript_chunks;
   if (!Array.isArray(chunks)) {
     return undefined;
@@ -342,15 +353,23 @@ function extractTranscriptExcerpt(document: Record<string, unknown>): string | u
   const text = chunks
     .map((chunk) =>
       isRecord(chunk)
-        ? (typeof chunk.text === "string" ? chunk.text : undefined)
-        : (typeof chunk === "string" ? chunk : undefined),
+        ? typeof chunk.text === "string"
+          ? chunk.text
+          : undefined
+        : typeof chunk === "string"
+          ? chunk
+          : undefined,
     )
     .filter((text): text is string => text !== undefined)
     .join(" ")
     .replace(/\s+/gu, " ")
     .trim();
 
-  return text.length > 0 ? (text.length > 1_000 ? `${text.slice(0, 1_000)}…` : text) : undefined;
+  return text.length > 0
+    ? text.length > 1_000
+      ? `${text.slice(0, 1_000)}…`
+      : text
+    : undefined;
 }
 
 function selectRecentMeetings(
@@ -365,7 +384,9 @@ function selectRecentMeetings(
 
   return meetings
     .filter((meeting) => {
-      const timestampMs = Date.parse(meeting.updatedAt ?? meeting.createdAt ?? "");
+      const timestampMs = Date.parse(
+        meeting.updatedAt ?? meeting.createdAt ?? "",
+      );
 
       return Number.isNaN(timestampMs) || timestampMs >= earliestMs;
     })

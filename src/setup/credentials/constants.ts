@@ -38,15 +38,24 @@ export const ONBOARDING_TEMPLATES = [
       "github",
       "gitlab",
       "google",
+      "google-ads",
+      "google-analytics",
+      "google-sheets",
       "granola",
       "hubspot",
       "linear",
+      "local-files",
+      "meta-ads",
       "notion",
+      "salesforce",
+      "sqlite",
+      "stripe",
       "web-search",
       "hackernews",
       "reddit",
       "rss",
       "x",
+      "zendesk",
     ],
     suggestedSources: [
       "Gmail",
@@ -56,6 +65,15 @@ export const ONBOARDING_TEMPLATES = [
       "GitLab",
       "Granola meeting notes",
       "HubSpot",
+      "Stripe",
+      "Salesforce",
+      "Zendesk",
+      "Google Analytics",
+      "Meta Ads",
+      "Google Ads",
+      "Google Sheets",
+      "SQLite database",
+      "Local files",
       "Custom MCP",
       "Web Search (Tavily)",
       "Hacker News",
@@ -297,6 +315,201 @@ export const SOURCE_OPTIONS = [
         secret: true,
       },
     ],
+  },
+  {
+    displayName: "Stripe",
+    examples: [
+      "Track recent charges, invoices, and subscription events.",
+      "Summarize billing activity since the last run.",
+    ],
+    id: "stripe",
+    instructions: [
+      "Create a restricted API key in Stripe with the Events read permission.",
+      "Paste the secret key below; it is saved to the local environment file.",
+      "Event type filters can be tuned in the stripe connector config.",
+    ],
+    secretInputs: [
+      {
+        envKey: "STRIPE_SECRET_KEY",
+        label: "Stripe secret key (restricted)",
+        secret: true,
+      },
+    ],
+  },
+  {
+    displayName: "Salesforce",
+    examples: [
+      "Follow recently modified accounts, contacts, opportunities, and cases.",
+      "Summarize pipeline movement since the last run.",
+    ],
+    id: "salesforce",
+    instructions: [
+      "Create a Connected App or use an OAuth token with the api scope.",
+      "Paste the access token below, then set SALESFORCE_INSTANCE_URL to your org URL (https://<org>.my.salesforce.com).",
+    ],
+    secretInputs: [
+      {
+        envKey: "SALESFORCE_ACCESS_TOKEN",
+        label: "Salesforce access token",
+        secret: true,
+      },
+      {
+        envKey: "SALESFORCE_INSTANCE_URL",
+        label: "Salesforce instance URL",
+        secret: false,
+      },
+    ],
+  },
+  {
+    displayName: "Zendesk",
+    examples: [
+      "Track newly created and updated support tickets.",
+      "Summarize recurring customer issues since the last run.",
+    ],
+    id: "zendesk",
+    instructions: [
+      "Create an API token in Zendesk Admin > Apps and integrations for an agent user.",
+      "Paste the token, agent email, and subdomain below.",
+    ],
+    secretInputs: [
+      {
+        envKey: "ZENDESK_API_TOKEN",
+        label: "Zendesk API token",
+        secret: true,
+      },
+      {
+        envKey: "ZENDESK_EMAIL",
+        label: "Zendesk agent email",
+        secret: false,
+      },
+      {
+        envKey: "ZENDESK_SUBDOMAIN",
+        label: "Zendesk subdomain",
+        secret: false,
+      },
+    ],
+  },
+  {
+    displayName: "Google Analytics",
+    examples: [
+      "Summarize weekly traffic trends by day and channel.",
+      "Watch for unusual traffic spikes on canonical pages.",
+    ],
+    id: "google-analytics",
+    instructions: [
+      "Create an OAuth client with the Google Analytics readonly scope.",
+      "Paste the access token and your numeric GA4 property ID below.",
+    ],
+    secretInputs: [
+      {
+        envKey: "GOOGLE_ANALYTICS_ACCESS_TOKEN",
+        label: "Google Analytics access token",
+        secret: true,
+      },
+      {
+        envKey: "GA4_PROPERTY_ID",
+        label: "GA4 property ID",
+        secret: false,
+      },
+    ],
+  },
+  {
+    displayName: "Meta Ads",
+    examples: [
+      "Track campaign spend, clicks, and CPM changes.",
+      "Flag campaigns with anomalous spend since the last run.",
+    ],
+    id: "meta-ads",
+    instructions: [
+      "Create a System User token in Meta Business Settings with ads_read.",
+      "Paste the token and the numeric ad account ID (without the act_ prefix).",
+    ],
+    secretInputs: [
+      {
+        envKey: "META_ACCESS_TOKEN",
+        label: "Meta system user access token",
+        secret: true,
+      },
+      {
+        envKey: "META_AD_ACCOUNT_ID",
+        label: "Meta ad account ID",
+        secret: false,
+      },
+    ],
+  },
+  {
+    displayName: "Google Ads",
+    examples: [
+      "Track campaign cost, clicks, impressions, and conversions.",
+      "Summarize paid-acquisition performance by day.",
+    ],
+    id: "google-ads",
+    instructions: [
+      "Apply for a developer token and create OAuth credentials with the AdWords scope.",
+      "Paste the access token, developer token, and 10-digit customer ID below.",
+    ],
+    secretInputs: [
+      {
+        envKey: "GOOGLE_ADS_ACCESS_TOKEN",
+        label: "Google Ads access token",
+        secret: true,
+      },
+      {
+        envKey: "GOOGLE_ADS_DEVELOPER_TOKEN",
+        label: "Google Ads developer token",
+        secret: true,
+      },
+      {
+        envKey: "GOOGLE_ADS_CUSTOMER_ID",
+        label: "Google Ads customer ID",
+        secret: false,
+      },
+    ],
+  },
+  {
+    displayName: "Google Sheets",
+    examples: [
+      "Ingest goal trackers and inventories maintained in spreadsheets.",
+      "Summarize rows added since the last run.",
+    ],
+    id: "google-sheets",
+    instructions: [
+      "Create an OAuth token with the spreadsheets.readonly scope and paste it below.",
+      "List {spreadsheetId, range} entries in the google-sheets connector config after setup.",
+    ],
+    secretInputs: [
+      {
+        envKey: "GOOGLE_SHEETS_ACCESS_TOKEN",
+        label: "Google Sheets access token",
+        secret: true,
+      },
+    ],
+  },
+  {
+    displayName: "SQLite Database",
+    examples: [
+      "Snapshot schema and row counts from a local application database.",
+      "Track how a local dataset grows between runs.",
+    ],
+    id: "sqlite",
+    instructions: [
+      "No account or API key is required; the database is opened read-only.",
+      "Set path (and optionally tables) in the sqlite connector config file.",
+    ],
+    secretInputs: [],
+  },
+  {
+    displayName: "Local Files",
+    examples: [
+      "Index which documents exist on this machine without reading contents.",
+      "Notice new reports or exports saved to Desktop or Downloads.",
+    ],
+    id: "local-files",
+    instructions: [
+      "No account or API key is required; only file metadata is recorded.",
+      "Directories can be changed in the local-files connector config file.",
+    ],
+    secretInputs: [],
   },
   {
     displayName: "Granola",

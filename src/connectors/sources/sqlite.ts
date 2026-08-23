@@ -82,7 +82,8 @@ async function ingest(
     });
   }
 
-  const databasePath = config.path?.trim() ?? "";
+  const rawPath = config.path;
+  const databasePath = typeof rawPath === "string" ? rawPath.trim() : "";
   if (databasePath.length === 0 || !existsSync(databasePath)) {
     return finishSqliteRun({
       message: `No SQLite database found. Set path to an existing .sqlite/.db file in ${openWikiConnectorsDisplayPath}/sqlite/config.json.`,
@@ -97,6 +98,7 @@ async function ingest(
   const maxRowsPerTable = normalizeMaxRows(
     options.limit ?? config.maxRowsPerTable,
   );
+  const home = process.env.HOME ?? process.env.USERPROFILE;
 
   try {
     // Read-only open: the connector never creates or mutates user databases.
@@ -104,7 +106,9 @@ async function ingest(
     try {
       const tableNames =
         config.tables && config.tables.length > 0
-          ? config.tables
+          ? config.tables.filter(
+              (table): table is string => typeof table === "string",
+            )
           : listUserTables(database);
 
       const snapshots: TableSnapshot[] = [];
@@ -118,7 +122,7 @@ async function ingest(
 
       rawFiles.push(
         await writeRawJson("sqlite", runId, "sqlite-snapshot.json", {
-          databasePath: path.resolve(databasePath),
+          databasePath: toDisplayPath(home, databasePath),
           fetchedAt: new Date().toISOString(),
           instanceId: options.instanceId,
           tables: snapshots,
@@ -189,12 +193,13 @@ async function finishSqliteRun({
 }
 
 /**
- * Lists ordinary user tables (excluding SQLite internals and shadow tables).
+ * Lists ordinary user tables via `pragma_table_list`, excluding SQLite
+ * internals, virtual tables, and FTS shadow tables.
  */
 function listUserTables(database: DatabaseSync): string[] {
   const rows = database
     .prepare(
-      "SELECT name FROM sqlite_schema WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+      "SELECT name FROM pragma_table_list WHERE schema = 'main' AND type = 'table' AND name NOT LIKE 'sqlite_%'",
     )
     .all() as { name: unknown }[];
 
@@ -211,11 +216,9 @@ function snapshotTable(
   tableName: string,
   maxRows: number,
 ): TableSnapshot {
-  assertSafeIdentifier(tableName);
+  const quoted = escapeIdentifier(tableName);
 
-  const pragmaRows = database
-    .prepare(`PRAGMA table_info("${tableName}")`)
-    .all() as {
+  const pragmaRows = database.prepare(`PRAGMA table_info(${quoted})`).all() as {
     name: unknown;
     type: unknown;
   }[];
@@ -226,28 +229,67 @@ function snapshotTable(
   );
 
   const countRow = database
-    .prepare(`SELECT COUNT(*) AS count FROM "${tableName}"`)
+    .prepare(`SELECT COUNT(*) AS count FROM ${quoted}`)
     .get() as { count: unknown };
   const rowCount = typeof countRow.count === "number" ? countRow.count : 0;
 
-  const sampleRows = database
-    .prepare(`SELECT * FROM "${tableName}" LIMIT ?`)
-    .all(maxRows) as Record<string, string | number | bigint | null>[];
+  const sampleStatement = database.prepare(`SELECT * FROM ${quoted} LIMIT ?`);
+  // Large 64-bit integers are read as BigInt so they are never lossy.
+  sampleStatement.setReadBigInts(true);
+  const sampleRows = sampleStatement.all(maxRows) as Record<
+    string,
+    string | number | bigint | null
+  >[];
 
   return {
     columns,
     name: tableName,
     rowCount,
-    rows: sampleRows,
+    rows: sampleRows.map(jsonSafeRow),
   };
 }
 
-// Table names come from config or the schema; quote-escape is not enough on its
-// own, so reject anything that could break out of the quoted identifier.
-function assertSafeIdentifier(tableName: string): void {
-  if (!/^[A-Za-z_][A-Za-z0-9_$]*$/u.test(tableName)) {
+/**
+ * Converts BigInt cell values to explicit decimal strings so the raw snapshot
+ * stays valid JSON without precision loss.
+ */
+function jsonSafeRow(row: Record<string, string | number | bigint | null>): {
+  [column: string]: string | number | null;
+} {
+  return Object.fromEntries(
+    Object.entries(row).map(([column, value]) => [
+      column,
+      typeof value === "bigint" ? value.toString() : value,
+    ]),
+  );
+}
+
+/**
+ * Quotes a table name as a SQL identifier. Double quotes inside the name are
+ * doubled per SQLite escaping rules; only truly unusable names are rejected.
+ */
+function escapeIdentifier(tableName: string): string {
+  if (tableName.length === 0 || tableName.includes("\0")) {
     throw new Error(`Refusing unsafe table identifier: ${tableName}`);
   }
+
+  return `"${tableName.replaceAll('"', '""')}"`;
+}
+
+/**
+ * Renders paths relative to the user's home when the database lives under it
+ * so raw dumps never contain absolute home paths.
+ */
+function toDisplayPath(home: string | undefined, filePath: string): string {
+  if (home === undefined || home.length === 0) {
+    return path.basename(filePath);
+  }
+  const relative = path.relative(home, filePath);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    return filePath;
+  }
+
+  return relative.split(path.sep).join("/");
 }
 
 function normalizeMaxRows(maxRows: number | undefined): number {

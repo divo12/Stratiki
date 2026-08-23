@@ -89,7 +89,6 @@ describe("meta-ads connector ingestion", () => {
     expect(result.status).toBe("success");
     expect(requests[0]?.pathName).toBe("/v21.0/act_1029384756/insights");
     expect(requests[0]?.authorization).toBe("Bearer EAAG-test");
-    expect(result.message).toContain("last_7d");
 
     const dump = JSON.parse(
       await readFile(result.rawFiles[0] ?? "", "utf8"),
@@ -98,6 +97,49 @@ describe("meta-ads connector ingestion", () => {
     };
     expect(dump.rows[0]?.clicks).toBe(310);
     expect(dump.rows[0]?.spend).toBeCloseTo(130.2);
+  });
+
+  test("follows paging cursors until the insight stream is exhausted", async () => {
+    process.env.META_ACCESS_TOKEN = "EAAG-test";
+    process.env.META_AD_ACCOUNT_ID = "1029384756";
+    const home = await createTempHome();
+    let page = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => {
+        page += 1;
+        return Promise.resolve(
+          jsonResponse({
+            data: [
+              {
+                campaign_id: String(page),
+                clicks: "1",
+                impressions: "10",
+              },
+            ],
+            ...(page < 3
+              ? {
+                  paging: {
+                    next: `https://graph.facebook.com/page-${page + 1}`,
+                  },
+                }
+              : {}),
+          }),
+        );
+      }),
+    );
+    const connector = await loadConnector(home);
+
+    const result = await connector.ingest();
+
+    expect(result.status).toBe("success");
+    expect(result.message).toContain("3 campaigns");
+
+    const dump = JSON.parse(
+      await readFile(result.rawFiles[0] ?? "", "utf8"),
+    ) as { rows: { campaignId: string; impressions: number }[] };
+    expect(dump.rows.map((row) => row.campaignId)).toEqual(["1", "2", "3"]);
+    expect(dump.rows.every((row) => row.impressions === 10)).toBe(true);
   });
 
   test("skips when not enabled and errors without credentials", async () => {

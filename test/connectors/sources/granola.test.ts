@@ -51,7 +51,10 @@ const DOCUMENTS_CACHE = {
         notes_plain:
           "Decision: cutover on Friday. Owner: Monica. Follow up on invoice retries.",
       },
-      transcript_chunks: [{ text: "Monica: we cut over Friday." }, { text: "Jared: agreed." }],
+      transcript_chunks: [
+        { text: "Monica: we cut over Friday." },
+        { text: "Jared: agreed." },
+      ],
     },
     {
       id: "mtg-2",
@@ -107,7 +110,9 @@ describe("granola connector discovery and parsing", () => {
     const dump = JSON.parse(
       await readFile(result.rawFiles[0] ?? "", "utf8"),
     ) as GranolaDump;
-    expect(dump.sourcePath).toBe(path.join(granolaAppDir(home), "supabase.json"));
+    expect(dump.sourcePath).toBe(
+      path.join(granolaAppDir(home), "supabase.json"),
+    );
     // The empty entry is skipped; newest first.
     expect(dump.totalParsed).toBe(2);
     expect(dump.meetings[0]?.title).toBe("Billing migration sync");
@@ -148,7 +153,11 @@ describe("granola connector discovery and parsing", () => {
 
   test("prefers the most recently modified candidate cache file", async () => {
     const home = await createTempHome();
-    await writeGranolaCache(home, "cache-v1.json", JSON.stringify({ unrelated: true }));
+    await writeGranolaCache(
+      home,
+      "cache-v1.json",
+      JSON.stringify({ unrelated: true }),
+    );
     await new Promise((resolve) => setTimeout(resolve, 20));
     await writeGranolaCache(
       home,
@@ -168,7 +177,11 @@ describe("granola connector discovery and parsing", () => {
 
   test("includes a bounded transcript excerpt when requested", async () => {
     const home = await createTempHome();
-    await writeGranolaCache(home, "supabase.json", JSON.stringify(DOCUMENTS_CACHE));
+    await writeGranolaCache(
+      home,
+      "supabase.json",
+      JSON.stringify(DOCUMENTS_CACHE),
+    );
     const connector = await loadGranolaConnector(home);
 
     const result = await connector.ingest({
@@ -186,7 +199,11 @@ describe("granola connector discovery and parsing", () => {
 describe("granola connector windowing and limits", () => {
   test("applies the time window to drop stale meetings", async () => {
     const home = await createTempHome();
-    await writeGranolaCache(home, "supabase.json", JSON.stringify(DOCUMENTS_CACHE));
+    await writeGranolaCache(
+      home,
+      "supabase.json",
+      JSON.stringify(DOCUMENTS_CACHE),
+    );
     const connector = await loadGranolaConnector(home);
 
     const result = await connector.ingest({ windowHours: 24 });
@@ -203,7 +220,11 @@ describe("granola connector windowing and limits", () => {
 
   test("caps the number of meetings written, keeping the freshest", async () => {
     const home = await createTempHome();
-    await writeGranolaCache(home, "supabase.json", JSON.stringify(DOCUMENTS_CACHE));
+    await writeGranolaCache(
+      home,
+      "supabase.json",
+      JSON.stringify(DOCUMENTS_CACHE),
+    );
     const connector = await loadGranolaConnector(home);
 
     const result = await connector.ingest({
@@ -276,7 +297,11 @@ describe("granola connector gating and failure modes", () => {
 
   test("warns when a discovered file has no recognizable documents list", async () => {
     const home = await createTempHome();
-    await writeGranolaCache(home, "settings.json", JSON.stringify({ theme: "dark" }));
+    await writeGranolaCache(
+      home,
+      "settings.json",
+      JSON.stringify({ theme: "dark" }),
+    );
     const connector = await loadGranolaConnector(home);
 
     const result = await connector.ingest();

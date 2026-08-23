@@ -28,6 +28,7 @@ type MetaInsightsResponse = {
     clicks?: string;
     cpc?: string;
     cpm?: string;
+    impressions?: string;
     spend?: string;
   }[];
 };
@@ -100,28 +101,38 @@ async function ingest(
     });
   }
 
+  // An explicit runtime window becomes a concrete time range; otherwise the
+  // configured (or default) date preset is used.
   const datePreset = normalizeDatePreset(config.datePreset);
+  const timeRange =
+    options.windowHours === undefined
+      ? undefined
+      : {
+          since: isoDaysAgo(Math.ceil(options.windowHours / 24)),
+          until: todayIsoDate(),
+        };
 
   try {
     const campaigns = await listCampaignInsights(
       accessToken.trim(),
       accountId.trim(),
-      datePreset,
+      timeRange ?? datePreset,
     );
 
     rawFiles.push(
       await writeRawJson("meta-ads", runId, "meta-insights.json", {
-        datePreset,
+        datePreset: timeRange === undefined ? datePreset : undefined,
         fetchedAt: new Date().toISOString(),
         instanceId: options.instanceId,
         rows: campaigns,
+        timeRange,
       }),
     );
 
     return finishMetaAdsRun({
       message: `Fetched insights for ${campaigns.length} campaign${
         campaigns.length === 1 ? "" : "s"
-      } (${datePreset}).`,
+      } (${timeRange === undefined ? datePreset : `${timeRange.since}..${timeRange.until}`}).`,
       rawFiles,
       runId,
       state,
@@ -179,27 +190,31 @@ async function finishMetaAdsRun({
 }
 
 /**
- * Fetches campaign-level insights for one date preset, following Graph API
- * paging cursors until exhausted.
+ * Fetches campaign-level insights for one date preset or explicit time range,
+ * following Graph API paging cursors until exhausted.
  */
 async function listCampaignInsights(
   accessToken: string,
   adAccountId: string,
-  datePreset: NonNullable<MetaAdsConfig["datePreset"]>,
+  reportingWindow: NonNullable<MetaAdsConfig["datePreset"]> | MetaTimeRange,
 ): Promise<CampaignInsight[]> {
   const insights: CampaignInsight[] = [];
   let pageUrl: URL | undefined = new URL(
     `/${GRAPH_API_VERSION}/act_${adAccountId}/insights`,
     GRAPH_API_BASE_URL,
   );
-  pageUrl.searchParams.set("date_preset", datePreset);
+  if (typeof reportingWindow === "string") {
+    pageUrl.searchParams.set("date_preset", reportingWindow);
+  } else {
+    pageUrl.searchParams.set("time_range", JSON.stringify(reportingWindow));
+  }
   pageUrl.searchParams.set("level", "campaign");
   pageUrl.searchParams.set(
     "fields",
     "campaign_id,campaign_name,impressions,clicks,spend,cpc,cpm",
   );
 
-  for (let page = 0; page < 10 && pageUrl !== undefined; page += 1) {
+  while (pageUrl !== undefined) {
     const response = await fetchWithResilience(pageUrl, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -224,6 +239,7 @@ async function listCampaignInsights(
         clicks: toNumber(row.clicks),
         cpc: toNumber(row.cpc),
         cpm: toNumber(row.cpm),
+        impressions: toNumber(row.impressions),
         spend: toNumber(row.spend),
       });
     }
@@ -237,12 +253,15 @@ async function listCampaignInsights(
   return insights;
 }
 
+type MetaTimeRange = { since: string; until: string };
+
 type CampaignInsight = {
   campaignId: string;
   campaignName: string | undefined;
   clicks: number | undefined;
   cpc: number | undefined;
   cpm: number | undefined;
+  impressions: number | undefined;
   spend: number | undefined;
 };
 
@@ -266,6 +285,16 @@ function normalizeDatePreset(
   datePreset: MetaAdsConfig["datePreset"],
 ): NonNullable<MetaAdsConfig["datePreset"]> {
   return DATE_PRESETS.find((preset) => preset === datePreset) ?? "last_7d";
+}
+
+function todayIsoDate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function isoDaysAgo(days: number): string {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
 }
 
 function getErrorMessage(error: unknown): string {

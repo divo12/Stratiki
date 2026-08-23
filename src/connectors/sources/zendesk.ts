@@ -128,7 +128,7 @@ async function ingest(
       : Math.floor((Date.now() - lookbackHours * 60 * 60 * 1000) / 1000);
 
   try {
-    const tickets = await listRecentTickets(
+    const listing = await listRecentTickets(
       buildCredentials(email.trim(), apiToken.trim()),
       subdomain.trim(),
       {
@@ -142,23 +142,26 @@ async function ingest(
         fetchedAt: new Date().toISOString(),
         instanceId: options.instanceId,
         startTime: new Date(startTime * 1000).toISOString(),
-        ticketCount: tickets.length,
-        tickets,
+        ticketCount: listing.tickets.length,
+        tickets: listing.tickets,
       }),
     );
 
+    // Advance the incremental cursor only when the stream was fully drained;
+    // a capped run must resume from its original start time so capped tickets
+    // are never skipped.
     return finishZendeskRun({
-      message: `Fetched ${tickets.length} Zendesk ticket${
-        tickets.length === 1 ? "" : "s"
+      message: `Fetched ${listing.tickets.length} Zendesk ticket${
+        listing.tickets.length === 1 ? "" : "s"
       } over a ${lookbackHours}h lookback.`,
       rawFiles,
       runId,
       state,
       status: "success",
       warnings,
-      latestIds: {
-        tickets: String(Math.floor(Date.now() / 1000) - 60),
-      },
+      latestIds: listing.drained
+        ? { tickets: String(Math.floor(Date.now() / 1000) - 60) }
+        : undefined,
     });
   } catch (error) {
     warnings.push(`tickets: ${getErrorMessage(error)}`);
@@ -225,21 +228,16 @@ async function listRecentTickets(
   credentials: string,
   subdomain: string,
   listOptions: { startTime: number; maxTickets: number },
-): Promise<ZendeskTicket[]> {
+): Promise<{ drained: boolean; tickets: ZendeskTicket[] }> {
   const tickets: ZendeskTicket[] = [];
   let pageUrl: URL | undefined = new URL(
     `/api/v2/incremental/tickets.json`,
     `https://${subdomain}.zendesk.com`,
   );
   pageUrl.searchParams.set("start_time", String(listOptions.startTime));
+  let drained = false;
 
-  for (
-    let page = 0;
-    page < 10 &&
-    pageUrl !== undefined &&
-    tickets.length < listOptions.maxTickets;
-    page += 1
-  ) {
+  while (pageUrl !== undefined && tickets.length < listOptions.maxTickets) {
     const response = await fetchWithResilience(pageUrl, {
       headers: {
         Authorization: `Basic ${credentials}`,
@@ -270,9 +268,15 @@ async function listRecentTickets(
       typeof payload.next_page === "string" && payload.next_page.length > 0
         ? new URL(payload.next_page)
         : undefined;
+    if (pageUrl === undefined) {
+      drained = payload.end_of_stream !== false;
+    }
   }
 
-  return tickets.slice(0, listOptions.maxTickets);
+  return {
+    drained,
+    tickets: tickets.slice(0, listOptions.maxTickets),
+  };
 }
 
 function buildCredentials(email: string, apiToken: string): string {

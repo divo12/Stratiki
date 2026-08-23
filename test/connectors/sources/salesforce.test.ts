@@ -11,6 +11,8 @@ const savedEnv = new Map<string, string | undefined>(
     "SALESFORCE_INSTANCE_URL",
   ].map((name) => [name, process.env[name]]),
 );
+// Recent enough to fall inside any lookback window the test uses.
+const RECENT_MODIFIED = new Date(Date.now() - 60 * 1000).toISOString();
 const tempHomes: string[] = [];
 
 async function createTempHome(): Promise<string> {
@@ -74,6 +76,7 @@ describe("salesforce connector ingestion", () => {
             records: [
               {
                 Id: "001",
+                LastModifiedDate: RECENT_MODIFIED,
                 Name: "Acme",
                 attributes: { type: "Account" },
               },
@@ -97,17 +100,23 @@ describe("salesforce connector ingestion", () => {
     const dump = JSON.parse(
       await readFile(result.rawFiles[0] ?? "", "utf8"),
     ) as { records: Record<string, Record<string, unknown>[]> };
-    expect(dump.records.Account).toEqual([{ Id: "001", Name: "Acme" }]);
+    expect(dump.records.Account).toEqual([
+      {
+        Id: "001",
+        LastModifiedDate: RECENT_MODIFIED,
+        Name: "Acme",
+      },
+    ]);
 
-    // The second run resumes from the stored per-stream high-water mark.
+    // The cursor advances to the newest LastModifiedDate actually returned,
+    // not the query's lower bound.
     const state = JSON.parse(
       await readFile(
         path.join(home, ".openwiki/connectors/salesforce/state.json"),
         "utf8",
       ),
     ) as { latestIds: Record<string, string> };
-    expect(typeof state.latestIds.records).toBe("string");
-    expect(Date.parse(state.latestIds.records ?? "")).not.toBeNaN();
+    expect(state.latestIds.records).toBe(RECENT_MODIFIED);
 
     queries.length = 0;
     await connector.ingest();

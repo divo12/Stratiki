@@ -170,6 +170,25 @@ async function ingest(
     0,
   );
 
+  // Persist the newest LastModifiedDate actually returned so the next run
+  // resumes forward; when nothing newer exists, the prior cursor is retained.
+  const newestModified = Object.values(records)
+    .flat()
+    .map((record) => record.LastModifiedDate)
+    .filter((value): value is string => typeof value === "string")
+    .sort()
+    .at(-1);
+  const priorCursor =
+    options.windowHours === undefined
+      ? parseCursorIso(state.latestIds?.records)
+      : null;
+  const nextCursor =
+    newestModified !== undefined &&
+    (priorCursor === null || newestModified > priorCursor) &&
+    newestModified > sinceIso
+      ? newestModified
+      : undefined;
+
   return finishSalesforceRun({
     message: `Fetched ${recordCount} Salesforce record${
       recordCount === 1 ? "" : "s"
@@ -181,7 +200,7 @@ async function ingest(
     state,
     status: warnings.length > 0 && recordCount === 0 ? "error" : "success",
     warnings,
-    latestIds: { records: sinceIso },
+    latestIds: nextCursor !== undefined ? { records: nextCursor } : undefined,
   });
 }
 

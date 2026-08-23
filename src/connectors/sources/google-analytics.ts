@@ -103,8 +103,12 @@ async function ingest(
   }
 
   const lookbackDays = normalizeLookbackDays(
-    options.windowHours === undefined ? undefined : options.windowHours / 24,
+    options.windowHours === undefined
+      ? config.lookbackDays
+      : options.windowHours / 24,
   );
+  const dimensions = normalizeStringList(config.dimensions, DEFAULT_DIMENSIONS);
+  const metrics = normalizeStringList(config.metrics, DEFAULT_METRICS);
   const dateRange = {
     endDate: todayIsoDate(),
     startDate: isoDaysAgo(lookbackDays),
@@ -113,8 +117,8 @@ async function ingest(
   try {
     const report = await runReport(accessToken.trim(), propertyId.trim(), {
       dateRange,
-      dimensions: config.dimensions ?? DEFAULT_DIMENSIONS,
-      metrics: config.metrics ?? DEFAULT_METRICS,
+      dimensions,
+      metrics,
     });
 
     rawFiles.push(
@@ -123,6 +127,7 @@ async function ingest(
         fetchedAt: new Date().toISOString(),
         instanceId: options.instanceId,
         lookbackDays,
+        propertyId: propertyId.trim(),
         rowCount: report.rows?.length ?? 0,
         rows: report.rows ?? [],
       }),
@@ -228,11 +233,25 @@ async function runReport(
 
   return (await response.json()) as Ga4RunReportResponse;
 }
-
 function normalizeLookbackDays(days: number | undefined): number {
   const value = typeof days === "number" && Number.isFinite(days) ? days : 7;
 
   return Math.max(1, Math.min(90, Math.trunc(value)));
+}
+
+/**
+ * Normalizes a configured name list, keeping only non-empty strings and
+ * falling back to the defaults when nothing usable remains.
+ */
+function normalizeStringList(
+  values: string[] | undefined,
+  fallback: string[],
+): string[] {
+  const usable = (values ?? []).filter(
+    (value) => typeof value === "string" && value.trim().length > 0,
+  );
+
+  return usable.length > 0 ? usable : [...fallback];
 }
 
 function todayIsoDate(): string {

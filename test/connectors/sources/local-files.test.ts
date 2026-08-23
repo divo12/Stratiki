@@ -69,22 +69,57 @@ describe("local-files connector ingestion", () => {
     expect(dump.entries.some((entry) => entry.path.includes(home))).toBe(false);
   });
 
-  test("respects the file budget and reports empty directories as skipped-free success", async () => {
+  test("enforces the file budget across the whole walk", async () => {
     const home = await createTempHome();
     await mkdir(path.join(home, "Downloads"), { recursive: true });
+    for (let index = 0; index < 5; index += 1) {
+      await writeFile(
+        path.join(home, "Downloads", `file-${index}.txt`),
+        "content",
+      );
+    }
 
     const connector = await loadConnector(home);
     const result = await connector.ingest({
-      connectorConfig: { directories: ["Downloads"], maxFiles: 1 },
+      connectorConfig: { directories: ["Downloads"] },
+      limit: 2,
     });
 
     expect(result.status).toBe("success");
 
-    const budgeted = await connector.ingest({
-      connectorConfig: { directories: ["Downloads"] },
-      limit: 1,
+    const dump = JSON.parse(
+      await readFile(result.rawFiles[0] ?? "", "utf8"),
+    ) as { entries: unknown[] };
+    expect(dump.entries).toHaveLength(2);
+  });
+
+  test("rejects absolute and traversal directories outside the home", async () => {
+    const home = await createTempHome();
+    await mkdir(path.join(home, "Documents"), { recursive: true });
+    const outside = await mkdtemp(path.join(tmpdir(), "openwiki-outside-"));
+    tempHomes.push(outside);
+    await writeFile(path.join(outside, "secret.txt"), "secret");
+    await writeFile(path.join(home, "Documents", "keep.txt"), "safe");
+
+    const connector = await loadConnector(home);
+    const result = await connector.ingest({
+      connectorConfig: {
+        directories: [outside, "../", "Documents", "../../etc"],
+      },
     });
-    expect(budgeted.rawFiles.length).toBe(1);
+
+    // Only the safe home-relative directory is walked; escapes are skipped
+    // with warnings and never appear in the manifest.
+    expect(result.status).toBe("success");
+    const dump = JSON.parse(
+      await readFile(result.rawFiles[0] ?? "", "utf8"),
+    ) as {
+      entries: { path: string }[];
+    };
+    expect(dump.entries.map((entry) => entry.path)).toEqual([
+      "Documents/keep.txt",
+    ]);
+    expect(result.warnings.length).toBeGreaterThanOrEqual(3);
   });
 
   test("skips when not enabled and errors when no home is resolvable", async () => {

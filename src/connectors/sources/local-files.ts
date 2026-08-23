@@ -1,4 +1,4 @@
-import { readdir, stat } from "node:fs/promises";
+import { readdir, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import {
   createRunId,
@@ -30,6 +30,9 @@ type FileEntry = {
 };
 
 const DEFAULT_DIRECTORIES = ["Desktop", "Documents", "Downloads"];
+
+// Caps recursion so pathological trees cannot make the walk unbounded.
+const MAX_WALK_DEPTH = 6;
 const IGNORED_DIRECTORY_NAMES = new Set([
   ".git",
   "node_modules",
@@ -95,8 +98,8 @@ async function ingest(
     });
   }
 
-  const home = process.env.HOME ?? process.env.USERPROFILE;
-  if (typeof home !== "string" || home.length === 0) {
+  const home = firstNonEmpty(process.env.HOME, process.env.USERPROFILE);
+  if (home === undefined) {
     return finishLocalFilesRun({
       message:
         "Cannot resolve the home directory; set HOME or USERPROFILE and retry.",
@@ -109,20 +112,52 @@ async function ingest(
   }
 
   const maxFiles = normalizeMaxFiles(options.limit ?? config.maxFiles);
-  const directories =
-    config.directories && config.directories.length > 0
-      ? config.directories
+  const configuredDirectories =
+    normalizeStringList(config.directories).length > 0
+      ? normalizeStringList(config.directories)
       : DEFAULT_DIRECTORIES;
+
+  // Resolve every directory up front so absolute paths, traversal segments,
+  // and symlink escapes are rejected before any walk starts.
+  const directories: string[] = [];
+  for (const directory of configuredDirectories) {
+    if (
+      path.isAbsolute(directory) ||
+      directory.split(/[\\/]+/u).includes("..")
+    ) {
+      warnings.push(
+        `${directory}: must be a home-relative path without ".." segments; skipped.`,
+      );
+      continue;
+    }
+    const absoluteDirectory = path.resolve(home, directory);
+    let realDirectory: string;
+    try {
+      // Resolve both sides through symlinks (e.g. /var -> /private/var on
+      // macOS) before comparing containment.
+      realDirectory = await realpath(absoluteDirectory);
+    } catch (error) {
+      warnings.push(`${directory}: ${getErrorMessage(error)}`);
+      continue;
+    }
+    const realHome = await realpath(home);
+    if (
+      realDirectory !== realHome &&
+      !realDirectory.startsWith(`${realHome}${path.sep}`)
+    ) {
+      warnings.push(
+        `${directory}: resolves outside the home directory; skipped.`,
+      );
+      continue;
+    }
+    directories.push(directory);
+  }
 
   const files: FileEntry[] = [];
   for (const directory of directories) {
     const absoluteDirectory = path.resolve(home, directory);
     try {
-      files.push(
-        ...(await walkDirectory(absoluteDirectory, home, {
-          remaining: () => maxFiles - files.length,
-        })),
-      );
+      await walkDirectory(absoluteDirectory, home, files, maxFiles, 0);
     } catch (error) {
       warnings.push(`${directory}: ${getErrorMessage(error)}`);
     }
@@ -191,34 +226,43 @@ async function finishLocalFilesRun({
 /**
  * Depth-limited walk that records file metadata only. Contents are never read;
  * the manifest exists so agents can cite what is on disk without scanning it.
+ *
+ * Appends into the caller-owned `files` array so the global budget is enforced
+ * across nested levels. Only absent directories are silently tolerated; other
+ * filesystem errors propagate to the per-directory warning path.
  */
 async function walkDirectory(
   root: string,
   home: string,
-  budget: { remaining: () => number },
-): Promise<FileEntry[]> {
-  if (budget.remaining() <= 0) return [];
+  files: FileEntry[],
+  maxFiles: number,
+  depth: number,
+): Promise<void> {
+  if (files.length >= maxFiles || depth > MAX_WALK_DEPTH) return;
 
   let entries;
   try {
     entries = await readdir(root, { withFileTypes: true });
-  } catch {
-    return [];
+  } catch (error) {
+    // Only a vanished directory is silently tolerated; every other filesystem
+    // error propagates to the per-directory warning path.
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+    throw error;
   }
 
-  const files: FileEntry[] = [];
   for (const entry of entries) {
-    if (budget.remaining() <= 0) break;
+    if (files.length >= maxFiles) break;
 
     const entryPath = path.join(root, entry.name);
+    const extension = path.extname(entry.name).toLowerCase();
     if (entry.isDirectory()) {
+      // macOS .app bundles are directories; apply the same exclusion list.
       if (IGNORED_DIRECTORY_NAMES.has(entry.name)) continue;
-      files.push(...(await walkDirectory(entryPath, home, budget)));
+      if (IGNORED_EXTENSIONS.has(extension)) continue;
+      await walkDirectory(entryPath, home, files, maxFiles, depth + 1);
       continue;
     }
     if (!entry.isFile()) continue;
-
-    const extension = path.extname(entry.name).toLowerCase();
     if (IGNORED_EXTENSIONS.has(extension)) continue;
 
     try {
@@ -233,8 +277,6 @@ async function walkDirectory(
       // The file disappeared mid-walk; skip it without failing the run.
     }
   }
-
-  return files;
 }
 
 /**
@@ -252,6 +294,22 @@ function normalizeMaxFiles(maxFiles: number | undefined): number {
     typeof maxFiles === "number" && Number.isFinite(maxFiles) ? maxFiles : 500;
 
   return Math.max(1, Math.min(5000, Math.trunc(limit)));
+}
+
+/**
+ * Returns the first argument that is a non-empty string.
+ */
+function firstNonEmpty(...values: (string | undefined)[]): string | undefined {
+  return values.find((value) => typeof value === "string" && value.length > 0);
+}
+
+/**
+ * Keeps only non-empty string directory entries from untrusted config.
+ */
+function normalizeStringList(values: string[] | undefined): string[] {
+  return (values ?? []).filter(
+    (value) => typeof value === "string" && value.trim().length > 0,
+  );
 }
 
 function getErrorMessage(error: unknown): string {
