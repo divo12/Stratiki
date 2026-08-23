@@ -76,10 +76,12 @@ export function createRunId(): string {
 export function updateStateWithRun(
   state: ConnectorState,
   run: NonNullable<ConnectorState["runs"]>[number],
+  latestIds?: Record<string, string>,
 ): ConnectorState {
   return {
     ...state,
     lastRunAt: run.at,
+    ...(latestIds ? { latestIds: { ...state.latestIds, ...latestIds } } : {}),
     runs: [run, ...(state.runs ?? [])].slice(0, 20),
     version: 1,
   };
