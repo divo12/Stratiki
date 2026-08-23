@@ -16,10 +16,13 @@ import {
 import {
   ensureOpenWikiHome,
   getConnectorConfigPath,
+  openWikiBookDbPath,
   openWikiHomeDisplayPath,
   openWikiLocalWikiDir,
   openWikiLocalWikiDisplayPath,
 } from "../config/openwiki-home.js";
+import { EpisodeStore } from "../book/episode-store.js";
+import { readFile } from "node:fs/promises";
 import { createOpenWikiThreadId, runOpenWikiAgent } from "../agent/index.js";
 import type {
   OpenWikiRunEvent,
@@ -171,6 +174,12 @@ async function runSourceIngestion({
     }
 
     emitDeterministicPullSummary(emit, deterministicPull);
+    await admitRawEpisodes({
+      connectorId: connector.id,
+      emit,
+      rawFiles,
+      runId: deterministicPull?.runId ?? "",
+    });
 
     const runOptions: OpenWikiRunOptions = {
       isFollowup: false,
@@ -484,4 +493,66 @@ function formatRawFileList(rawFiles: string[]): string {
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Admits each raw pull artifact into the episode store so refresh loops are
+ * deduplicated and bi-temporally tracked. Admission failures never break the
+ * ingestion run: they degrade to warnings because the store is an
+ * optimization over raw files that already exist on disk.
+ */
+async function admitRawEpisodes({
+  connectorId,
+  emit,
+  rawFiles,
+  runId,
+}: {
+  connectorId: ConnectorId;
+  emit: ((event: OpenWikiRunEvent) => void) | undefined;
+  rawFiles: string[];
+  runId: string;
+}): Promise<void> {
+  if (rawFiles.length === 0) {
+    return;
+  }
+
+  try {
+    const store = await EpisodeStore.open(openWikiBookDbPath);
+    try {
+      for (const filePath of rawFiles) {
+        let content: string;
+        try {
+          content = await readFile(filePath, "utf8");
+        } catch (error) {
+          emitText(
+            emit,
+            `Episode admission skipped (unreadable ${filePath}): ${getErrorMessage(error)}\n`,
+          );
+          continue;
+        }
+
+        const result = store.admit({
+          bytes: Buffer.byteLength(content, "utf8"),
+          connectorId,
+          content,
+          eventTimeIso: new Date().toISOString(),
+          runId,
+          sourceRef: filePath,
+        });
+        if (result.outcome === "rejected") {
+          emitText(
+            emit,
+            `Episode rejected for ${connectorId} (${result.decision.rejection.reason}): ${filePath}\n`,
+          );
+        }
+      }
+    } finally {
+      store.close();
+    }
+  } catch (error) {
+    emitText(
+      emit,
+      `Episode store unavailable; continuing without episode tracking: ${getErrorMessage(error)}\n`,
+    );
+  }
 }
