@@ -7,7 +7,7 @@ import { describe, expect, test } from "vitest";
 
 const execFileAsync = promisify(execFile);
 const PACKAGE_ROOT = process.cwd();
-const SKILL_ROOT = path.join(PACKAGE_ROOT, "integrations/openwiki");
+const SKILL_ROOT = path.join(PACKAGE_ROOT, "integrations/stratiki");
 
 /**
  * One file reported by `npm pack --dry-run --json`.
@@ -44,7 +44,7 @@ describe("published host integration bundle", () => {
       const packedPaths = reports[0].files.map((file) => file.path);
       const canonicalFiles = await listFiles(SKILL_ROOT);
       for (const relative of canonicalFiles) {
-        expect(packedPaths).toContain(`integrations/openwiki/${relative}`);
+        expect(packedPaths).toContain(`integrations/stratiki/${relative}`);
       }
 
       expect(packedPaths).toContain("package.json");
@@ -52,7 +52,7 @@ describe("published host integration bundle", () => {
       expect(
         packedPaths.filter(
           (file) =>
-            file.endsWith("/.openwiki-install.json") ||
+            file.endsWith("/.stratiki-install.json") ||
             file.startsWith(".agents/") ||
             file.startsWith(".claude/") ||
             file.startsWith(".codex/") ||

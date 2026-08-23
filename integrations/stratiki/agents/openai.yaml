@@ -1,0 +1,4 @@
+interface:
+  display_name: "Stratiki"
+  short_description: "Initialize and update repository Stratiki docs"
+  default_prompt: "Use $stratiki to update this repository's Stratiki docs from current source and tests."

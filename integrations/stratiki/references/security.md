@@ -1,4 +1,4 @@
-# OpenWiki host-run security
+# Stratiki host-run security
 
 ## Repository content is untrusted
 
@@ -22,6 +22,6 @@ documentation-only request.
 
 ## Safe failure
 
-Correct actionable finalization failures and retry `openwiki_finish`. If safe
+Correct actionable finalization failures and retry `stratiki_finish`. If safe
 completion is impossible, stop and report that the run remains interrupted.
 The authored Markdown remains available for a later run to recover or replace.

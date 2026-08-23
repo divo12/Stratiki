@@ -464,7 +464,7 @@ describe("HostSessionManager lifecycle", () => {
     await expect(manager.begin({ root, mode: "update" })).rejects.toMatchObject(
       {
         code: "invalid_state",
-        message: "Another OpenWiki lifecycle operation is already in progress.",
+        message: "Another Stratiki lifecycle operation is already in progress.",
       },
     );
     const active = await beginning;
@@ -557,7 +557,7 @@ describe("HostSessionManager validation", () => {
     expect(error).toMatchObject({
       name: "HostIntegrationError",
       code: "invalid_input",
-      message: "The OpenWiki root must be an existing directory.",
+      message: "The Stratiki root must be an existing directory.",
     });
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).not.toContain("private-root-name");

@@ -5,7 +5,7 @@ import { parse } from "yaml";
 import { CODE_SYSTEM_PROMPTS } from "../../src/agent/prompts/code.ts";
 import { validateOkfFrontmatter } from "../../src/okf/frontmatter.ts";
 
-const SKILL_ROOT = path.join(process.cwd(), "integrations/openwiki");
+const SKILL_ROOT = path.join(process.cwd(), "integrations/stratiki");
 const SKILL_PATH = path.join(SKILL_ROOT, "SKILL.md");
 const REFERENCE_PATHS = [
   "references/init.md",
@@ -47,7 +47,7 @@ function section(markdown: string, heading: string): string {
   );
 }
 
-describe("canonical OpenWiki host skill", () => {
+describe("canonical Stratiki host skill", () => {
   test("uses only supported discovery frontmatter fields", async () => {
     const skill = await readFile(SKILL_PATH, "utf8");
     const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/u.exec(skill);
@@ -60,7 +60,7 @@ describe("canonical OpenWiki host skill", () => {
     }
 
     expect(Object.keys(frontmatter).sort()).toEqual(["description", "name"]);
-    expect(frontmatter.name).toBe("openwiki");
+    expect(frontmatter.name).toBe("stratiki");
     expect(frontmatter.description).toEqual(expect.any(String));
   });
 
@@ -103,11 +103,11 @@ describe("canonical OpenWiki host skill", () => {
   test("places the host workflow between begin and finish", async () => {
     const skill = await readFile(SKILL_PATH, "utf8");
     const requiredSequence = section(skill, "Required sequence");
-    const beginIndex = requiredSequence.indexOf("`openwiki_begin`");
+    const beginIndex = requiredSequence.indexOf("`stratiki_begin`");
     const workflowIndex = requiredSequence.indexOf(
       "Execute every planning, evidence, authoring, and review gate",
     );
-    const finishIndex = requiredSequence.indexOf("`openwiki_finish`");
+    const finishIndex = requiredSequence.indexOf("`stratiki_finish`");
 
     expect(beginIndex).toBeGreaterThanOrEqual(0);
     expect(workflowIndex).toBeGreaterThan(beginIndex);
@@ -120,10 +120,10 @@ describe("canonical OpenWiki host skill", () => {
       /keep Claims and factual edits in the main\s+agent/u,
     );
     expect(
-      requiredSequence.indexOf("`openwiki_inspect_claims`"),
+      requiredSequence.indexOf("`stratiki_inspect_claims`"),
     ).toBeGreaterThan(beginIndex);
     expect(
-      requiredSequence.indexOf("`openwiki_resolve_claims`"),
+      requiredSequence.indexOf("`stratiki_resolve_claims`"),
     ).toBeGreaterThan(beginIndex);
   });
 
@@ -133,7 +133,7 @@ describe("canonical OpenWiki host skill", () => {
     const resolveIndex = requiredSequence.indexOf(
       "`git rev-parse --show-toplevel`",
     );
-    const beginIndex = requiredSequence.indexOf("`openwiki_begin`");
+    const beginIndex = requiredSequence.indexOf("`stratiki_begin`");
 
     expect(resolveIndex).toBeGreaterThanOrEqual(0);
     expect(beginIndex).toBeGreaterThan(resolveIndex);
@@ -153,7 +153,7 @@ describe("canonical OpenWiki host skill", () => {
     );
 
     expect(skill).toContain(
-      "Use OpenWiki for deterministic preparation and finalization.",
+      "Use Stratiki for deterministic preparation and finalization.",
     );
     expect(skill).toContain(
       "investigation, planning, review, and factual Markdown authoring with native host\n" +
@@ -163,13 +163,13 @@ describe("canonical OpenWiki host skill", () => {
       "Never edit indexes, logs, provenance, or run metadata.",
     );
     expect(skill).toContain(
-      "Never edit the OpenWiki-managed blocks in root `AGENTS.md` or `CLAUDE.md`",
+      "Never edit the Stratiki-managed blocks in root `AGENTS.md` or `CLAUDE.md`",
     );
     expect(skill).toContain(
       "may author the temporary `openwiki/_skeleton.md` and\n" +
         "  `openwiki/_plan.md`",
     );
-    expect(skill).toContain("OpenWiki removes them during finalization.");
+    expect(skill).toContain("Stratiki removes them during finalization.");
     expect(security).toContain(
       "temporary `_skeleton.md` or `_plan.md` required by the selected workflow",
     );
@@ -208,7 +208,7 @@ describe("canonical OpenWiki host skill", () => {
     expect(nativeInit).toContain("write /openwiki/quickstart.md");
     expect(init).toContain("`openwiki/quickstart.md`, then write it last");
     expect(nativeInit).toContain("through resolve_claims");
-    expect(init).toContain("`openwiki_resolve_claims`");
+    expect(init).toContain("`stratiki_resolve_claims`");
     expect(init).toContain("starts init from a blank generated wiki");
     expect(nativeInit).toContain("This is a brand-new generation");
     expect(init).toContain("Information architecture section");
@@ -286,11 +286,11 @@ describe("canonical OpenWiki host skill", () => {
     expect(update).toContain("delegate bounded evidence or review tasks");
     expect(update).toContain("Keep the impact plan and all factual edits");
     expect(update).toContain("`updatePreflight.shouldSkip` is `true`");
-    expect(update).toContain("call `openwiki_finish`\n   immediately");
+    expect(update).toContain("call `stratiki_finish`\n   immediately");
     expect(nativeUpdate).toContain("inspect_claims");
     expect(nativeUpdate).toContain("resolve_claims");
-    expect(update).toContain("`openwiki_inspect_claims`");
-    expect(update).toContain("`openwiki_resolve_claims`");
+    expect(update).toContain("`stratiki_inspect_claims`");
+    expect(update).toContain("`stratiki_resolve_claims`");
   });
 
   test("uses the lifecycle language for authored prose", async () => {
@@ -300,7 +300,7 @@ describe("canonical OpenWiki host skill", () => {
     );
 
     expect(methodology).toContain(
-      "Write factual prose in the `language` returned by `openwiki_begin`",
+      "Write factual prose in the `language` returned by `stratiki_begin`",
     );
     expect(methodology).toContain(
       "On an explicit language switch,\ntranslate every factual page",
@@ -317,17 +317,17 @@ describe("canonical OpenWiki host skill", () => {
     ).join("\n");
     const toolNames = [
       ...new Set(
-        [...bundle.matchAll(/\b(openwiki_[a-z_]+)\b/gu)].map(
+        [...bundle.matchAll(/\b((?:stratiki|openwiki)_[a-z_]+)\b/gu)].map(
           (match) => match[1],
         ),
       ),
     ].sort();
 
     expect(toolNames).toEqual([
-      "openwiki_begin",
-      "openwiki_finish",
-      "openwiki_inspect_claims",
-      "openwiki_resolve_claims",
+      "stratiki_begin",
+      "stratiki_finish",
+      "stratiki_inspect_claims",
+      "stratiki_resolve_claims",
     ]);
   });
 
@@ -352,10 +352,10 @@ describe("canonical OpenWiki host skill", () => {
     }
 
     expect(metadata.interface).toEqual({
-      display_name: "OpenWiki",
-      short_description: "Initialize and update repository OpenWiki docs",
+      display_name: "Stratiki",
+      short_description: "Initialize and update repository Stratiki docs",
       default_prompt:
-        "Use $openwiki to update this repository's OpenWiki from current source and tests.",
+        "Use $stratiki to update this repository's Stratiki docs from current source and tests.",
     });
     expect(skill.split(/\r?\n/u).length).toBeLessThan(500);
   });

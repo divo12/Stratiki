@@ -18,22 +18,27 @@ export async function installJsonMcpEntry(
 ): Promise<boolean> {
   const root = (await readJsonObject(filePath)) ?? {};
   const servers = asObject(root.mcpServers, "mcpServers", filePath);
-  const existing = servers.openwiki;
+  // Migration: a pre-rename `openwiki` entry is ours to replace; drop it so
+  // the new install does not leave a dead server behind.
+  if (isLegacyOpenWikiEntry(servers.openwiki)) {
+    delete servers.openwiki;
+  }
+  const existing = servers.stratiki;
   if (existing !== undefined) {
     if (matchesEntry(existing, entry)) return false;
     if (replaceableEntry && matchesEntry(existing, replaceableEntry)) {
-      servers.openwiki = entry;
+      servers.stratiki = entry;
       root.mcpServers = servers;
       await writeTextAtomic(filePath, `${JSON.stringify(root, null, 2)}\n`);
       return true;
     }
     throw new HostIntegrationError(
       "conflict",
-      `An openwiki MCP server already exists in ${filePath}.`,
+      `A stratiki MCP server already exists in ${filePath}.`,
     );
   }
 
-  servers.openwiki = entry;
+  servers.stratiki = entry;
   root.mcpServers = servers;
   await writeTextAtomic(filePath, `${JSON.stringify(root, null, 2)}\n`);
   return true;
@@ -54,16 +59,20 @@ export async function uninstallJsonMcpEntry(
   if (root === null) return false;
 
   const servers = asObject(root.mcpServers, "mcpServers", filePath);
-  const existing = servers.openwiki;
+  const existing = servers.stratiki;
   if (existing === undefined) return false;
   if (!matchesEntry(existing, expected)) {
     throw new HostIntegrationError(
       "conflict",
-      `Refusing to remove a modified openwiki MCP entry from ${filePath}.`,
+      `Refusing to remove a modified stratiki MCP entry from ${filePath}.`,
     );
   }
 
-  delete servers.openwiki;
+  delete servers.stratiki;
+  // Migration cleanup: remove the pre-rename entry if it is still ours.
+  if (isLegacyOpenWikiEntry(servers.openwiki)) {
+    delete servers.openwiki;
+  }
   root.mcpServers = servers;
   await writeTextAtomic(filePath, `${JSON.stringify(root, null, 2)}\n`);
   return true;
@@ -84,8 +93,8 @@ export async function getJsonMcpEntryStatus(
     const root = await readJsonObject(filePath, true);
     if (root === null) return "not-installed";
     const servers = asObject(root.mcpServers, "mcpServers", filePath);
-    if (servers.openwiki === undefined) return "not-installed";
-    return matchesEntry(servers.openwiki, expected) ? "installed" : "modified";
+    if (servers.stratiki === undefined) return "not-installed";
+    return matchesEntry(servers.stratiki, expected) ? "installed" : "modified";
   } catch {
     return "modified";
   }
@@ -149,7 +158,7 @@ function asObject(
 /**
  * Compares an unknown JSON value with the exact managed entry shape.
  *
- * @param value - Existing `mcpServers.openwiki` value.
+ * @param value - Existing `mcpServers.stratiki` value.
  * @param expected - Registry-derived managed entry.
  * @returns Whether the value is structurally identical to the managed entry.
  */
@@ -172,4 +181,19 @@ function matchesEntry(value: unknown, expected: HostMcpServerCommand): boolean {
  */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * True when an entry under the pre-rename `openwiki` key is the one this
+ * package installed (command `openwiki`). Such entries are migrated or
+ * cleaned up by install/uninstall; foreign entries under that key are left
+ * untouched.
+ */
+function isLegacyOpenWikiEntry(value: unknown): boolean {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "command" in value &&
+    (value as { command?: unknown }).command === "openwiki"
+  );
 }

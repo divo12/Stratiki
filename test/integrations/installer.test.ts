@@ -37,7 +37,7 @@ import type {
 } from "../../src/integrations/install/types.ts";
 import { OPENWIKI_VERSION } from "../../src/version.ts";
 
-const RECEIPT_FILE = ".openwiki-install.json";
+const RECEIPT_FILE = ".stratiki-install.json";
 const CONFIG_SENTINEL = "UNRELATED_CONFIG_SENTINEL";
 const TARGETS = listHostTargets();
 const temporaryRoots: string[] = [];
@@ -156,14 +156,14 @@ async function expectManagedConfig(
     expect(JSON.parse(content)).toMatchObject({
       mcpServers: {
         other: { command: "other" },
-        openwiki: {
-          command: "openwiki",
+        stratiki: {
+          command: "stratiki",
           args: ["mcp", "--host", target.id],
         },
       },
     });
   } else {
-    expect(content).toContain('[mcp_servers.openwiki]\ncommand = "openwiki"');
+    expect(content).toContain('[mcp_servers.stratiki]\ncommand = "stratiki"');
     expect(content).toContain(`args = ["mcp", "--host", "${target.id}"]`);
   }
 }
@@ -308,7 +308,7 @@ async function writeMalformedConfig(
   const content =
     target.project.mcpConfig.kind === "json"
       ? "{ malformed json\n"
-      : "# OPENWIKI:MCP:START\n";
+      : "# STRATIKI:MCP:START\n";
   await mkdir(path.dirname(destination), { recursive: true });
   await writeFile(destination, content, "utf8");
   return content;
@@ -331,7 +331,7 @@ async function modifyManagedConfig(
     if (!isRecord(parsed) || !isRecord(parsed.mcpServers)) {
       throw new Error("Expected an MCP server mapping.");
     }
-    parsed.mcpServers.openwiki = { command: "custom", args: [] };
+    parsed.mcpServers.stratiki = { command: "custom", args: [] };
     await writeFile(
       destination,
       `${JSON.stringify(parsed, null, 2)}\n`,
@@ -340,7 +340,7 @@ async function modifyManagedConfig(
   } else {
     await writeFile(
       destination,
-      content.replace('command = "openwiki"', 'command = "custom"'),
+      content.replace('command = "stratiki"', 'command = "custom"'),
       "utf8",
     );
   }
@@ -360,14 +360,14 @@ describe("host integration registry", () => {
       codex: {
         producerActor: "codex",
         user: {
-          skillDirectory: ".agents/skills/openwiki",
+          skillDirectory: ".agents/skills/stratiki",
           mcpConfig: {
             kind: "codex-toml",
             relativePath: ".codex/config.toml",
           },
         },
         project: {
-          skillDirectory: ".agents/skills/openwiki",
+          skillDirectory: ".agents/skills/stratiki",
           mcpConfig: {
             kind: "codex-toml",
             relativePath: ".codex/config.toml",
@@ -377,11 +377,11 @@ describe("host integration registry", () => {
       claude: {
         producerActor: "claude-code",
         user: {
-          skillDirectory: ".claude/skills/openwiki",
+          skillDirectory: ".claude/skills/stratiki",
           mcpConfig: { kind: "json", relativePath: ".claude.json" },
         },
         project: {
-          skillDirectory: ".claude/skills/openwiki",
+          skillDirectory: ".claude/skills/stratiki",
           mcpConfig: { kind: "json", relativePath: ".mcp.json" },
         },
       },
@@ -491,7 +491,7 @@ describe.each(TARGETS)("$displayName host integration", (target) => {
     expect((await stat(configPath(root, target))).mode & 0o777).toBe(0o600);
 
     const canonical = await readTree(
-      path.join(process.cwd(), "integrations/openwiki"),
+      path.join(process.cwd(), "integrations/stratiki"),
     );
     const copied = await readTree(skillPath(root, target));
     const receiptText = copied[RECEIPT_FILE];
@@ -501,7 +501,7 @@ describe.each(TARGETS)("$displayName host integration", (target) => {
     expect(receiptText).not.toContain(CONFIG_SENTINEL);
     const receipt: unknown = JSON.parse(receiptText ?? "");
     expect(receipt).toMatchObject({
-      package: "openwiki",
+      package: "stratiki",
       version: OPENWIKI_VERSION,
       target: target.id,
       mcpServerCommand: defaultMcpServerCommand(target.id),
@@ -549,7 +549,7 @@ describe.each(TARGETS)("$displayName host integration", (target) => {
     const content = await readFile(configPath(root, target), "utf8");
     if (target.project.mcpConfig.kind === "json") {
       expect(JSON.parse(content)).toMatchObject({
-        mcpServers: { openwiki: localCommand },
+        mcpServers: { stratiki: localCommand },
       });
     } else {
       expect(content).toContain(
@@ -859,7 +859,7 @@ describe("project integration root resolution", () => {
       installer.install(HOST_TARGETS.codex, projectOptions(directory)),
     ).rejects.toMatchObject({
       code: "invalid_input",
-      message: "The OpenWiki root must be inside a Git repository.",
+      message: "The Stratiki root must be inside a Git repository.",
     });
     await expect(access(path.join(directory, ".agents"))).rejects.toThrow();
   });
@@ -883,7 +883,7 @@ describe("host directory cleanup", () => {
 describe("canonical skill bundle resolution", () => {
   test("resolves the same package bundle from source and built layouts", () => {
     const packageRoot = process.cwd();
-    const expected = path.join(packageRoot, "integrations/openwiki");
+    const expected = path.join(packageRoot, "integrations/stratiki");
     const sourceUrl = pathToFileURL(
       path.join(packageRoot, "src/integrations/install/installer.ts"),
     ).href;

@@ -523,28 +523,28 @@ export class HostSessionManager {
   tools(): readonly ProtocolTool[] {
     return [
       {
-        name: "openwiki_begin",
+        name: "stratiki_begin",
         description:
           "Run deterministic OpenWiki preparation before the host agent authors documentation.",
         schema: BeginInput,
         handle: async (input) => this.begin(BeginInput.parse(input)),
       },
       {
-        name: "openwiki_inspect_claims",
+        name: "stratiki_inspect_claims",
         description: INSPECT_CLAIMS_DESCRIPTION,
         schema: InspectClaimsInput,
         handle: async (input) =>
           this.inspectClaims(InspectClaimsInput.parse(input)),
       },
       {
-        name: "openwiki_resolve_claims",
+        name: "stratiki_resolve_claims",
         description: RESOLVE_CLAIMS_DESCRIPTION,
         schema: ResolveClaimsInput,
         handle: async (input) =>
           this.resolveClaims(ResolveClaimsInput.parse(input)),
       },
       {
-        name: "openwiki_finish",
+        name: "stratiki_finish",
         description:
           "Run deterministic OpenWiki finalization after host authoring and complete the run.",
         schema: RunInput,
@@ -563,7 +563,7 @@ export class HostSessionManager {
     if (!this.active || this.active.id !== runId) {
       throw new HostIntegrationError(
         "invalid_state",
-        "No matching OpenWiki run is active.",
+        "No matching Stratiki run is active.",
       );
     }
     return this.active;
@@ -576,7 +576,7 @@ export class HostSessionManager {
     if (this.operationInProgress) {
       throw new HostIntegrationError(
         "invalid_state",
-        "Another OpenWiki lifecycle operation is already in progress.",
+        "Another Stratiki lifecycle operation is already in progress.",
       );
     }
     this.operationInProgress = true;

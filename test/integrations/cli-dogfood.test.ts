@@ -67,7 +67,7 @@ describe("host integration CLI dogfood", () => {
     expect(stdout.join("")).toContain("install Codex\n");
     expect(stderr.join("")).toBe("");
     await expect(
-      stat(path.join(projectRoot, ".agents/skills/openwiki/SKILL.md")),
+      stat(path.join(projectRoot, ".agents/skills/stratiki/SKILL.md")),
     ).resolves.toMatchObject({});
     expect(
       await readFile(path.join(projectRoot, ".codex/config.toml"), "utf8"),
@@ -111,7 +111,7 @@ describe("host integration CLI dogfood", () => {
     });
     expect(stdout.join("")).toContain("uninstall Codex\n");
     await expect(
-      stat(path.join(projectRoot, ".agents/skills/openwiki")),
+      stat(path.join(projectRoot, ".agents/skills/stratiki")),
     ).rejects.toMatchObject({ code: "ENOENT" });
 
     stdout = [];
@@ -251,17 +251,17 @@ async function removeMcpEntry(target: HostTarget): Promise<void> {
     const parsed = JSON.parse(content) as {
       mcpServers?: Record<string, unknown>;
     };
-    delete parsed.mcpServers?.openwiki;
+    delete parsed.mcpServers?.stratiki;
     await writeFile(configPath, `${JSON.stringify(parsed, null, 2)}\n`, "utf8");
     return;
   }
 
   const managedBlock = [
-    "# OPENWIKI:MCP:START",
-    "[mcp_servers.openwiki]",
+    "# STRATIKI:MCP:START",
+    "[mcp_servers.stratiki]",
     `command = ${JSON.stringify(command.command)}`,
     `args = [${command.args.map((argument) => JSON.stringify(argument)).join(", ")}]`,
-    "# OPENWIKI:MCP:END",
+    "# STRATIKI:MCP:END",
     "",
   ].join("\n");
   expect(content).toContain(managedBlock);

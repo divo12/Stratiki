@@ -23,7 +23,7 @@ export async function resolveRepositoryRoot(
   if (!path.isAbsolute(candidate)) {
     throw new HostIntegrationError(
       "invalid_input",
-      "The OpenWiki root must be an absolute path inside a Git repository.",
+      "The Stratiki root must be an absolute path inside a Git repository.",
     );
   }
 
@@ -45,7 +45,7 @@ async function resolveExistingDirectory(candidate: string): Promise<string> {
     if (!(await lstat(directory)).isDirectory()) {
       throw new HostIntegrationError(
         "invalid_input",
-        "The OpenWiki root must be a directory.",
+        "The Stratiki root must be a directory.",
       );
     }
     return directory;
@@ -53,7 +53,7 @@ async function resolveExistingDirectory(candidate: string): Promise<string> {
     if (error instanceof HostIntegrationError) throw error;
     throw new HostIntegrationError(
       "invalid_input",
-      "The OpenWiki root must be an existing directory.",
+      "The Stratiki root must be an existing directory.",
     );
   }
 }
@@ -78,7 +78,7 @@ async function resolveGitTopLevel(directory: string): Promise<string> {
     if (error instanceof HostIntegrationError) throw error;
     throw new HostIntegrationError(
       "invalid_input",
-      "The OpenWiki root must be inside a Git repository.",
+      "The Stratiki root must be inside a Git repository.",
     );
   }
 }

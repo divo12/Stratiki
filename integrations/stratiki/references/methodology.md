@@ -1,4 +1,4 @@
-# OpenWiki authoring methodology
+# Stratiki authoring methodology
 
 ## Contents
 
@@ -27,21 +27,21 @@ operations, and extension seams. Do not create Claims merely for symbol
 existence, paths, signatures, types, or inheritance unless those facts
 materially change how the system is understood or safely changed.
 
-Use `openwiki_resolve_claims` before writing new material factual prose. Cite
+Use `stratiki_resolve_claims` before writing new material factual prose. Cite
 the narrowest sufficient repository evidence with `repo://path#L10-L24`; use
 `repo://path` only when the whole file is necessary. Use `confirm` when a
 proposition remains true, `update` when its statement or evidence changes,
 `retract` when it is obsolete, and `add` for a new material fact.
 
 On update, inspect every materially affected existing page through
-`openwiki_inspect_claims` before editing it. Resolve only Claims relevant to the
+`stratiki_inspect_claims` before editing it. Resolve only Claims relevant to the
 task and leave unrelated pages unchanged. Normal Markdown reads, stylistic
 edits, structural indexes, logs, and temporary plans do not require Claims.
 Claims currently support repository evidence only.
 
 ## Output language
 
-Write factual prose in the `language` returned by `openwiki_begin`. Preserve
+Write factual prose in the `language` returned by `stratiki_begin`. Preserve
 code identifiers, paths, commands, API names, URLs, and code blocks when
 translation would reduce technical accuracy. On an explicit language switch,
 translate every factual page consistently in the same update.
@@ -66,7 +66,7 @@ tags: [authentication, sessions]
 ```
 
 `type` is required. Preserve unknown producer fields. Do not author `generated`;
-OpenWiki stamps it during finish. Do not add concept frontmatter to generated
+Stratiki stamps it during finish. Do not add concept frontmatter to generated
 indexes or logs.
 
 ## Relationships

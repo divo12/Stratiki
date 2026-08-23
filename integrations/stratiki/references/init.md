@@ -1,4 +1,4 @@
-# Initialize OpenWiki
+# Initialize Stratiki
 
 ## Contents
 
@@ -11,7 +11,7 @@
 Build a durable engineering map from an intent to the owning systems, runtime
 flows, files, symbols, focused tests, and operations.
 
-`openwiki_begin` starts init from a blank generated wiki. Prior generated pages,
+`stratiki_begin` starts init from a blank generated wiki. Prior generated pages,
 Claims sidecars, indexes, and run metadata are unavailable; the user-authored
 `openwiki/INSTRUCTIONS.md` brief is preserved when present.
 
@@ -68,7 +68,7 @@ Claims sidecars, indexes, and run metadata are unavailable; the user-authored
    than repeating the domain inventory. The main agent retains ownership of all
    Claims mutations and factual Markdown edits.
    Establish every material repository-supported proposition with
-   `openwiki_resolve_claims`, passing the active `runId`, the page, and bounded
+   `stratiki_resolve_claims`, passing the active `runId`, the page, and bounded
    `repo://path#L10-L24` evidence where practical. Batch multiple pages in one
    call when their evidence is ready. Then write complete explanatory prose
    grounded in those propositions. Explain ownership, behavior, relationships,
@@ -95,12 +95,12 @@ Claims sidecars, indexes, and run metadata are unavailable; the user-authored
 10. Invoke the question finder and create one TODO for every returned question.
 11. Batch related questions in groups of two or three and launch verifier batches
     together. For every `PARTIAL` or `FAIL`, reconcile the affected propositions
-    through `openwiki_resolve_claims` before repairing Markdown. Complete all
+    through `stratiki_resolve_claims` before repairing Markdown. Complete all
     repairs in a wave before retrying only those IDs. Continue until every
     question passes.
 12. Perform a final reconciliation against the reviewed plan, QA TODOs, and
     Claims-backed page set. Keep quickstart links accurate after repairs.
-13. Call `openwiki_finish`; it removes the temporary plan and completes
+13. Call `stratiki_finish`; it removes the temporary plan and completes
     Claims persistence, deterministic validation, indexing, provenance, and
     metadata.
 

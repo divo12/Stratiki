@@ -66,11 +66,11 @@ export async function runIntegrationsCommand(
           ? `Restart ${target.displayName}, then open any Git repository.`
           : `Restart ${target.displayName} in this repository.`;
       process.stdout.write(
-        `\nOpenWiki is ready for ${target.displayName}.\n\n` +
+        `\nStratiki is ready for ${target.displayName}.\n\n` +
           "Next:\n" +
           `  1. ${restartGuidance}\n` +
-          "  2. Confirm the openwiki MCP server is available.\n" +
-          "  3. Ask: “Initialize OpenWiki for this repository.”\n",
+          "  2. Confirm the stratiki MCP server is available.\n" +
+          "  3. Ask: “Initialize Stratiki for this repository.”\n",
       );
     }
     process.exitCode = 0;

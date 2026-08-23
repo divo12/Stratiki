@@ -7,15 +7,15 @@ import type { ProtocolTool } from "../core/protocol.js";
 /**
  * Host guidance advertised during MCP initialization.
  */
-const INSTRUCTIONS = `OpenWiki exposes deterministic lifecycle and Grounded Claims tools.
-Resolve the absolute Git top-level, then call openwiki_begin with that root
-before investigating or authoring. Pass its runId to every later OpenWiki tool.
+const INSTRUCTIONS = `Stratiki exposes deterministic lifecycle and Grounded Claims tools.
+Resolve the absolute Git top-level, then call stratiki_begin with that root
+before investigating or authoring. Pass its runId to every later Stratiki tool.
 Before materially editing an existing factual page, inspect its Claims with
-openwiki_inspect_claims. Establish or reconcile material repository-supported
-propositions with openwiki_resolve_claims. Use the host's native repository tools
+stratiki_inspect_claims. Establish or reconcile material repository-supported
+propositions with stratiki_resolve_claims. Use the host's native repository tools
 to inspect source code and author wiki pages.
-Call openwiki_finish after authoring. If the run cannot be completed, leave it
-interrupted; a later begin supersedes it. Do not directly edit OpenWiki-owned
+Call stratiki_finish after authoring. If the run cannot be completed, leave it
+interrupted; a later begin supersedes it. Do not directly edit Stratiki-owned
 Claims sidecars, indexes, logs, provenance, run metadata, setup blocks, or
 scheduled workflows.
 The host may author the temporary openwiki/_plan.md and openwiki/_skeleton.md
@@ -41,7 +41,7 @@ export interface HostToolProvider {
  */
 export function createOpenWikiMcpServer(provider: HostToolProvider): McpServer {
   const server = new McpServer(
-    { name: "openwiki", version: OPENWIKI_VERSION },
+    { name: "stratiki", version: OPENWIKI_VERSION },
     { instructions: INSTRUCTIONS },
   );
 
@@ -81,8 +81,8 @@ async function executeTool(
       return toolError(`${error.code}: ${error.message}`);
     }
 
-    process.stderr.write("OpenWiki MCP operation failed.\n");
-    return toolError("OpenWiki MCP operation failed.");
+    process.stderr.write("Stratiki MCP operation failed.\n");
+    return toolError("Stratiki MCP operation failed.");
   }
 }
 
