@@ -4,24 +4,29 @@ export type ConnectorId =
   | "github"
   | "gitlab"
   | "google"
+  | "google-ads"
+  | "google-analytics"
+  | "google-sheets"
   | "granola"
   | "hackernews"
   | "hubspot"
   | "langsmith"
   | "linear"
+  | "local-files"
+  | "meta-ads"
   | "notion"
   | "reddit"
   | "rss"
+  | "salesforce"
   | "slack"
+  | "sqlite"
+  | "stripe"
   | "web-search"
-  | "x";
+  | "x"
+  | "zendesk";
 
 export type ConnectorBackend =
-  | "direct-api"
-  | "local-git"
-  | "local-store"
-  | "mcp-http"
-  | "mcp-stdio";
+  "direct-api" | "local-git" | "local-store" | "mcp-http" | "mcp-stdio";
 
 export type ConnectorDefinition = {
   backend: ConnectorBackend;

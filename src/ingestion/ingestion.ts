@@ -438,6 +438,42 @@ export function createConnectorSynthesisGuidance(
     case "git-repo":
       return `
 - Use repository paths, branches, HEADs, dirty status, and recent commits as evidence. Route durable project status, blockers, and follow-ups into canonical pages instead of mirroring repository manifests.`;
+    case "stripe":
+      return `
+- Treat Stripe events as commercial-activity evidence: summarize billing momentum (new subscriptions, upgrades/downgrades, failed payments, payouts) rather than listing events.
+- Aggregate by event type and customer impact; keep /sources/stripe.md as a compact evidence index with event ids and dates.`;
+    case "salesforce":
+      return `
+- Treat Salesforce record changes as pipeline and account evidence. Summarize stage movement, newly created accounts/opportunities, and at-risk cases; note amounts only when they change the picture.
+- Keep per-record detail (ids, last-modified dates) in /sources/salesforce.md; surface durable accounts on canonical pages only when worth remembering.`;
+    case "zendesk":
+      return `
+- Treat ticket activity as support-health evidence. Summarize open/closed balance, recurring complaint topics, escalations, and response-priority signals instead of mirroring tickets.
+- Route durable product complaints or requests into /themes.md; keep per-ticket detail in /sources/zendesk.md with ids, statuses, and dates.`;
+    case "google-analytics":
+      return `
+- Treat GA4 rows as traffic-trend evidence. Call out notable day-over-day or channel shifts only when they are material; never present a single day as a trend.
+- Keep /sources/google-analytics.md as a compact table of dates/channels with the metrics that moved.`;
+    case "meta-ads":
+      return `
+- Treat campaign insights as spend-performance evidence. Summarize cost drivers (spend, CPC/CPM shifts, click volume) and flag campaigns with anomalous spend or zero conversions.
+- Keep /sources/meta-ads.md as one compact row per campaign with the reporting window stated.`;
+    case "google-ads":
+      return `
+- Treat campaign performance rows as paid-acquisition evidence. Summarize cost (account-currency), clicks, conversions, and any day with unusual spend; state the date range explicitly.
+- Keep /sources/google-ads.md as a compact per-campaign index; do not restate every daily row.`;
+    case "google-sheets":
+      return `
+- Treat sheet rows as structured user-curated evidence: goals, trackers, inventories, or plans the user maintains deliberately. Preserve column headers as field names when summarizing.
+- Keep raw tabular dumps out of canonical pages; index what changed in /sources/google-sheets.md with spreadsheet id and range.`;
+    case "sqlite":
+      return `
+- Treat table snapshots as local-application-data evidence. Describe schema and scale (row counts) rather than reproducing row contents, and never copy potentially personal rows into wiki pages.
+- Keep /sources/sqlite.md as a compact catalog: database path (home-relative), tables, columns, and counts.`;
+    case "local-files":
+      return `
+- Treat file manifests as availability evidence (what exists where), not content evidence: the manifest contains no file contents. Note notable documents or recent activity only when names are self-explanatory.
+- Keep /sources/local-files.md as a compact directory-level summary; never list every file.`;
     case "langsmith":
       return `
 - LangSmith runtime evidence has been pulled for the "langsmith" connector. Inspect it with openwiki_list_raw_items and openwiki_read_raw_item; the pull already ran, so do not re-ingest. The dump can be large: aggregate it (call counts, per-tool latency/token totals, repeated calls) rather than pasting it.

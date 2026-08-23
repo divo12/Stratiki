@@ -1,0 +1,282 @@
+import {
+  createRunId,
+  readConnectorConfig,
+  readConnectorState,
+  updateStateWithRun,
+  writeConnectorState,
+  writeRawJson,
+} from "../io.js";
+import { fetchWithResilience } from "../http.js";
+import { openWikiConnectorsDisplayPath } from "../../config/openwiki-home.js";
+import type {
+  ConnectorDefinition,
+  ConnectorIngestOptions,
+  ConnectorIngestResult,
+  ConnectorRuntime,
+} from "../types.js";
+
+type StripeConfig = {
+  enabled?: boolean;
+  eventTypes?: string[];
+  lookbackHours?: number;
+  maxEvents?: number;
+};
+
+type StripeListResponse = {
+  data?: {
+    id?: string;
+    created?: number;
+    livemode?: boolean;
+    type?: string;
+  }[];
+  has_more?: boolean;
+};
+
+const STRIPE_API_BASE_URL = "https://api.stripe.com";
+
+const definition: ConnectorDefinition = {
+  backend: "direct-api",
+  description:
+    "Fetches recent Stripe account events (charges, invoices, subscriptions, payouts) through the Events API.",
+  displayName: "Stripe",
+  id: "stripe",
+  mode: "personal",
+  requiredEnv: ["STRIPE_SECRET_KEY"],
+  supportsAgenticDiscovery: false,
+};
+
+export function createStripeConnector(): ConnectorRuntime {
+  return {
+    ...definition,
+    ingest,
+  };
+}
+
+async function ingest(
+  options: ConnectorIngestOptions = {},
+): Promise<ConnectorIngestResult> {
+  const runId = createRunId();
+  const config = {
+    ...(await readConnectorConfig<StripeConfig>("stripe", {
+      enabled: true,
+      eventTypes: [],
+      lookbackHours: 24,
+      maxEvents: 200,
+    })),
+    ...((options.connectorConfig ?? {}) as StripeConfig),
+  };
+  const state = await readConnectorState("stripe");
+  const warnings: string[] = [];
+  const rawFiles: string[] = [];
+
+  if (!config.enabled) {
+    return finishStripeRun({
+      message: `Stripe connector is not enabled. Set enabled=true in ${openWikiConnectorsDisplayPath}/stripe/config.json.`,
+      rawFiles,
+      runId,
+      state,
+      status: "skipped",
+      warnings,
+    });
+  }
+
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  if (typeof secretKey !== "string" || secretKey.trim().length === 0) {
+    return finishStripeRun({
+      message:
+        "STRIPE_SECRET_KEY is not set. Create a restricted API key with Event read permission.",
+      rawFiles,
+      runId,
+      state,
+      status: "error",
+      warnings,
+    });
+  }
+
+  // Stripe event timestamps are second-resolution Unix epoch seconds.
+  const lookbackHours = normalizeLookbackHours(
+    options.windowHours ?? config.lookbackHours,
+  );
+  const createdGte = Math.floor(Date.now() / 1000) - lookbackHours * 60 * 60;
+  const maxEvents = normalizeMaxEvents(options.limit ?? config.maxEvents);
+
+  try {
+    const events = await listRecentEvents(secretKey.trim(), {
+      createdGte,
+      eventTypes: config.eventTypes ?? [],
+      maxEvents,
+    });
+
+    rawFiles.push(
+      await writeRawJson("stripe", runId, "stripe-events.json", {
+        createdGte: new Date(createdGte * 1000).toISOString(),
+        eventCount: events.length,
+        events,
+        fetchedAt: new Date().toISOString(),
+        instanceId: options.instanceId,
+        lookbackHours,
+      }),
+    );
+
+    return finishStripeRun({
+      message: `Fetched ${events.length} Stripe event${
+        events.length === 1 ? "" : "s"
+      } over a ${lookbackHours}h lookback.`,
+      rawFiles,
+      runId,
+      state,
+      status: "success",
+      warnings,
+    });
+  } catch (error) {
+    warnings.push(`events: ${getErrorMessage(error)}`);
+    return finishStripeRun({
+      message: `Stripe ingestion failed: ${getErrorMessage(error)}`,
+      rawFiles,
+      runId,
+      state,
+      status: "error",
+      warnings,
+    });
+  }
+}
+
+async function finishStripeRun({
+  message,
+  rawFiles,
+  runId,
+  state,
+  status,
+  warnings,
+}: {
+  message: string;
+  rawFiles: string[];
+  runId: string;
+  state: Awaited<ReturnType<typeof readConnectorState>>;
+  status: ConnectorIngestResult["status"];
+  warnings: string[];
+}): Promise<ConnectorIngestResult> {
+  await writeConnectorState(
+    "stripe",
+    updateStateWithRun(state, {
+      at: new Date().toISOString(),
+      rawFiles,
+      runId,
+      status,
+      warnings,
+    }),
+  );
+
+  return {
+    connectorId: "stripe",
+    message,
+    rawFiles,
+    runId,
+    statePath: `${openWikiConnectorsDisplayPath}/stripe/state.json`,
+    status,
+    warnings,
+  };
+}
+
+/**
+ * Lists recent events oldest-first up to the configured maximum, following
+ * `has_more` pagination until either the page budget or the event cap is hit.
+ */
+async function listRecentEvents(
+  secretKey: string,
+  listOptions: {
+    createdGte: number;
+    eventTypes: string[];
+    maxEvents: number;
+  },
+): Promise<
+  { id: string; type: string; createdAt: string; livemode: boolean }[]
+> {
+  const events: {
+    id: string;
+    type: string;
+    createdAt: string;
+    livemode: boolean;
+  }[] = [];
+  let startingAfter: string | undefined;
+
+  for (
+    let page = 0;
+    page < 10 && events.length < listOptions.maxEvents;
+    page += 1
+  ) {
+    const url = new URL("/v1/events", STRIPE_API_BASE_URL);
+    url.searchParams.set("created[gte]", String(listOptions.createdGte));
+    url.searchParams.set("limit", "100");
+    if (listOptions.eventTypes.length > 0) {
+      for (const eventType of listOptions.eventTypes) {
+        url.searchParams.append("types[]", eventType);
+      }
+    }
+    if (startingAfter !== undefined) {
+      url.searchParams.set("starting_after", startingAfter);
+    }
+
+    const response = await fetchWithResilience(url, {
+      headers: {
+        Authorization: `Bearer ${secretKey}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Stripe request failed: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    const payload = (await response.json()) as StripeListResponse;
+    for (const event of payload.data ?? []) {
+      if (
+        typeof event.id !== "string" ||
+        typeof event.type !== "string" ||
+        typeof event.created !== "number"
+      ) {
+        continue;
+      }
+      events.push({
+        createdAt: new Date(event.created * 1000).toISOString(),
+        id: event.id,
+        livemode: event.livemode === true,
+        type: event.type,
+      });
+    }
+
+    if (payload.has_more === true && (payload.data?.length ?? 0) > 0) {
+      const [lastEvent] = (payload.data ?? []).slice(-1);
+      startingAfter =
+        typeof lastEvent?.id === "string" ? lastEvent.id : undefined;
+      if (startingAfter === undefined) break;
+    } else {
+      break;
+    }
+  }
+
+  return events.slice(0, listOptions.maxEvents);
+}
+
+function normalizeLookbackHours(windowHours: number | undefined): number {
+  const hours =
+    typeof windowHours === "number" && Number.isFinite(windowHours)
+      ? windowHours
+      : 24;
+
+  return Math.max(1, Math.min(720, Math.trunc(hours)));
+}
+
+function normalizeMaxEvents(maxEvents: number | undefined): number {
+  const limit =
+    typeof maxEvents === "number" && Number.isFinite(maxEvents)
+      ? maxEvents
+      : 200;
+
+  return Math.max(1, Math.min(1000, Math.trunc(limit)));
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
