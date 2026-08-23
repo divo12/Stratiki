@@ -84,7 +84,14 @@ describe("host integration CLI dogfood", () => {
       force: false,
     });
     expect(stdout.join("")).toBe(
-      "codex\tinstalled\tCodex\n" + "claude\tnot-installed\tClaude Code\n",
+      "codex\tinstalled\tCodex\n" +
+        "claude\tnot-installed\tClaude Code\n" +
+        "cursor\tnot-installed\tCursor\n" +
+        // Codex and Antigravity share .agents/skills/stratiki at project
+        // scope, so the intact Codex-owned receipt reports as modified for
+        // Antigravity until it is force-installed or Codex uninstalls.
+        "antigravity\tmodified\tAntigravity\n" +
+        "opencode\tnot-installed\tOpenCode\n",
     );
 
     stdout = [];
@@ -252,6 +259,15 @@ async function removeMcpEntry(target: HostTarget): Promise<void> {
       mcpServers?: Record<string, unknown>;
     };
     delete parsed.mcpServers?.stratiki;
+    await writeFile(configPath, `${JSON.stringify(parsed, null, 2)}\n`, "utf8");
+    return;
+  }
+
+  if (target.project.mcpConfig.kind === "opencode-json") {
+    const parsed = JSON.parse(content) as {
+      mcp?: Record<string, unknown>;
+    };
+    delete parsed.mcp?.stratiki;
     await writeFile(configPath, `${JSON.stringify(parsed, null, 2)}\n`, "utf8");
     return;
   }

@@ -9,6 +9,11 @@ import {
   uninstallJsonMcpEntry,
 } from "./config-json.js";
 import {
+  getOpenCodeMcpEntryStatus,
+  installOpenCodeMcpEntry,
+  uninstallOpenCodeMcpEntry,
+} from "./config-opencode.js";
+import {
   getCodexMcpBlockStatus,
   installCodexMcpBlock,
   uninstallCodexMcpBlock,
@@ -577,9 +582,14 @@ async function installManagedConfig(
   entry: HostMcpServerCommand,
   replaceableEntry?: HostMcpServerCommand,
 ): Promise<boolean> {
-  return kind === "json"
-    ? installJsonMcpEntry(filePath, entry, replaceableEntry)
-    : installCodexMcpBlock(filePath, entry, replaceableEntry);
+  switch (kind) {
+    case "json":
+      return installJsonMcpEntry(filePath, entry, replaceableEntry);
+    case "codex-toml":
+      return installCodexMcpBlock(filePath, entry, replaceableEntry);
+    case "opencode-json":
+      return installOpenCodeMcpEntry(filePath, entry, replaceableEntry);
+  }
 }
 
 /**
@@ -595,9 +605,14 @@ async function uninstallManagedConfig(
   filePath: string,
   entry: HostMcpServerCommand,
 ): Promise<boolean> {
-  return kind === "json"
-    ? uninstallJsonMcpEntry(filePath, entry)
-    : uninstallCodexMcpBlock(filePath, entry);
+  switch (kind) {
+    case "json":
+      return uninstallJsonMcpEntry(filePath, entry);
+    case "codex-toml":
+      return uninstallCodexMcpBlock(filePath, entry);
+    case "opencode-json":
+      return uninstallOpenCodeMcpEntry(filePath, entry);
+  }
 }
 
 /**
@@ -613,9 +628,14 @@ async function getManagedConfigStatus(
   filePath: string,
   entry: HostMcpServerCommand,
 ): Promise<HostIntegrationStatus> {
-  return kind === "json"
-    ? getJsonMcpEntryStatus(filePath, entry)
-    : getCodexMcpBlockStatus(filePath, entry);
+  switch (kind) {
+    case "json":
+      return getJsonMcpEntryStatus(filePath, entry);
+    case "codex-toml":
+      return getCodexMcpBlockStatus(filePath, entry);
+    case "opencode-json":
+      return getOpenCodeMcpEntryStatus(filePath, entry);
+  }
 }
 
 /**

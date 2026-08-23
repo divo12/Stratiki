@@ -135,7 +135,14 @@ async function seedConfig(root: string, target: HostTarget): Promise<void> {
           note: CONFIG_SENTINEL,
           mcpServers: { other: { command: "other" } },
         })}\n`
-      : `model = "${CONFIG_SENTINEL}"\n\n`;
+      : target.project.mcpConfig.kind === "opencode-json"
+        ? `${JSON.stringify({
+            $schema: CONFIG_SENTINEL,
+            mcp: {
+              other: { type: "local", command: ["other"], enabled: true },
+            },
+          })}\n`
+        : `model = "${CONFIG_SENTINEL}"\n\n`;
   await writeFile(destination, content, { encoding: "utf8", mode: 0o600 });
   await chmod(destination, 0o600);
 }
@@ -159,6 +166,17 @@ async function expectManagedConfig(
         stratiki: {
           command: "stratiki",
           args: ["mcp", "--host", target.id],
+        },
+      },
+    });
+  } else if (target.project.mcpConfig.kind === "opencode-json") {
+    expect(JSON.parse(content)).toMatchObject({
+      mcp: {
+        other: { type: "local", command: ["other"], enabled: true },
+        stratiki: {
+          type: "local",
+          command: ["stratiki", "mcp", "--host", target.id],
+          enabled: true,
         },
       },
     });
@@ -306,9 +324,9 @@ async function writeMalformedConfig(
 ): Promise<string> {
   const destination = configPath(root, target);
   const content =
-    target.project.mcpConfig.kind === "json"
-      ? "{ malformed json\n"
-      : "# STRATIKI:MCP:START\n";
+    target.project.mcpConfig.kind === "codex-toml"
+      ? "# STRATIKI:MCP:START\n"
+      : "{ malformed json\n";
   await mkdir(path.dirname(destination), { recursive: true });
   await writeFile(destination, content, "utf8");
   return content;
@@ -332,6 +350,17 @@ async function modifyManagedConfig(
       throw new Error("Expected an MCP server mapping.");
     }
     parsed.mcpServers.stratiki = { command: "custom", args: [] };
+    await writeFile(
+      destination,
+      `${JSON.stringify(parsed, null, 2)}\n`,
+      "utf8",
+    );
+  } else if (target.project.mcpConfig.kind === "opencode-json") {
+    const parsed: unknown = JSON.parse(content);
+    if (!isRecord(parsed) || !isRecord(parsed.mcp)) {
+      throw new Error("Expected an MCP mapping.");
+    }
+    parsed.mcp.stratiki = { type: "local", command: ["custom"], enabled: true };
     await writeFile(
       destination,
       `${JSON.stringify(parsed, null, 2)}\n`,
@@ -385,10 +414,55 @@ describe("host integration registry", () => {
           mcpConfig: { kind: "json", relativePath: ".mcp.json" },
         },
       },
+      cursor: {
+        producerActor: "cursor",
+        user: {
+          skillDirectory: ".cursor/skills/stratiki",
+          mcpConfig: { kind: "json", relativePath: ".cursor/mcp.json" },
+        },
+        project: {
+          skillDirectory: ".cursor/skills/stratiki",
+          mcpConfig: { kind: "json", relativePath: ".cursor/mcp.json" },
+        },
+      },
+      antigravity: {
+        producerActor: "antigravity",
+        user: {
+          skillDirectory: ".gemini/antigravity-cli/skills/stratiki",
+          mcpConfig: {
+            kind: "json",
+            relativePath: ".gemini/config/mcp_config.json",
+          },
+        },
+        project: {
+          skillDirectory: ".agents/skills/stratiki",
+          mcpConfig: { kind: "json", relativePath: ".agents/mcp_config.json" },
+        },
+      },
+      opencode: {
+        producerActor: "opencode",
+        user: {
+          skillDirectory: ".config/opencode/skills/stratiki",
+          mcpConfig: {
+            kind: "opencode-json",
+            relativePath: ".config/opencode/opencode.json",
+          },
+        },
+        project: {
+          skillDirectory: ".opencode/skills/stratiki",
+          mcpConfig: { kind: "opencode-json", relativePath: "opencode.json" },
+        },
+      },
     });
     expect(getHostTarget("codex")).toBe(HOST_TARGETS.codex);
     expect(getHostTarget("unsupported")).toBeUndefined();
-    expect(TARGETS.map((target) => target.id)).toEqual(["codex", "claude"]);
+    expect(TARGETS.map((target) => target.id)).toEqual([
+      "codex",
+      "claude",
+      "cursor",
+      "antigravity",
+      "opencode",
+    ]);
     const userTargets = TARGETS.filter((target) => target.user !== null);
     expect(
       new Set(userTargets.map((target) => target.user?.skillDirectory)).size,
@@ -550,6 +624,16 @@ describe.each(TARGETS)("$displayName host integration", (target) => {
     if (target.project.mcpConfig.kind === "json") {
       expect(JSON.parse(content)).toMatchObject({
         mcpServers: { stratiki: localCommand },
+      });
+    } else if (target.project.mcpConfig.kind === "opencode-json") {
+      expect(JSON.parse(content)).toMatchObject({
+        mcp: {
+          stratiki: {
+            type: "local",
+            command: [localCommand.command, ...localCommand.args],
+            enabled: true,
+          },
+        },
       });
     } else {
       expect(content).toContain(

@@ -24,6 +24,8 @@ import {
   uninstallHostIntegration,
 } from "../../src/integrations/install/installer.ts";
 import { runOpenWikiMcp } from "../../src/integrations/mcp/stdio.ts";
+import { listHostTargets } from "../../src/integrations/install/registry.ts";
+import type { HostIntegrationStatus } from "../../src/integrations/install/types.ts";
 import {
   runIntegrationsCommand,
   runMcpCommand,
@@ -62,9 +64,12 @@ afterEach(() => {
 
 describe("runIntegrationsCommand", () => {
   test("lists every registry host with a stable tabular status", async () => {
-    vi.mocked(getHostIntegrationStatus)
-      .mockResolvedValueOnce("installed")
-      .mockResolvedValueOnce("modified");
+    const statusSequence: HostIntegrationStatus[] = listHostTargets().map(
+      (_target, index) => (index % 2 === 0 ? "installed" : "modified"),
+    );
+    for (const status of statusSequence) {
+      vi.mocked(getHostIntegrationStatus).mockResolvedValueOnce(status);
+    }
 
     await runIntegrationsCommand({
       kind: "integrations",
@@ -77,9 +82,16 @@ describe("runIntegrationsCommand", () => {
     });
 
     expect(stdout.join("")).toBe(
-      "codex\tinstalled\tCodex\n" + "claude\tmodified\tClaude Code\n",
+      `${listHostTargets()
+        .map(
+          (target, index) =>
+            `${target.id}\t${statusSequence[index]}\t${target.displayName}`,
+        )
+        .join("\n")}\n`,
     );
-    expect(getHostIntegrationStatus).toHaveBeenCalledTimes(2);
+    expect(getHostIntegrationStatus).toHaveBeenCalledTimes(
+      statusSequence.length,
+    );
     expect(getHostIntegrationStatus).toHaveBeenCalledWith(
       expect.objectContaining({ id: "codex" }),
       { scope: "user", root: os.homedir() },
