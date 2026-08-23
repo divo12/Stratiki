@@ -121,9 +121,13 @@ async function ingest(
   const lookbackHours = normalizeLookbackHours(
     options.windowHours ?? config.lookbackHours,
   );
-  const sinceIso = new Date(
-    Date.now() - lookbackHours * 60 * 60 * 1000,
-  ).toISOString();
+  // A prior run's high-water mark resumes the stream; an explicit windowHours
+  // override re-opens a bounded window instead.
+  const cursorSince = parseCursorIso(state.latestIds?.records);
+  const sinceIso =
+    options.windowHours === undefined && cursorSince !== null
+      ? cursorSince
+      : new Date(Date.now() - lookbackHours * 60 * 60 * 1000).toISOString();
 
   const includedObjects = (
     [
@@ -177,6 +181,7 @@ async function ingest(
     state,
     status: warnings.length > 0 && recordCount === 0 ? "error" : "success",
     warnings,
+    latestIds: { records: sinceIso },
   });
 }
 
@@ -187,6 +192,7 @@ async function finishSalesforceRun({
   state,
   status,
   warnings,
+  latestIds,
 }: {
   message: string;
   rawFiles: string[];
@@ -194,16 +200,21 @@ async function finishSalesforceRun({
   state: Awaited<ReturnType<typeof readConnectorState>>;
   status: ConnectorIngestResult["status"];
   warnings: string[];
+  latestIds?: Record<string, string>;
 }): Promise<ConnectorIngestResult> {
   await writeConnectorState(
     "salesforce",
-    updateStateWithRun(state, {
-      at: new Date().toISOString(),
-      rawFiles,
-      runId,
-      status,
-      warnings,
-    }),
+    updateStateWithRun(
+      state,
+      {
+        at: new Date().toISOString(),
+        rawFiles,
+        runId,
+        status,
+        warnings,
+      },
+      latestIds,
+    ),
   );
 
   return {
@@ -260,6 +271,19 @@ function normalizeLookbackHours(windowHours: number | undefined): number {
       : 24;
 
   return Math.max(1, Math.min(168, Math.trunc(hours)));
+}
+
+/**
+ * Reads the stored per-stream high-water mark as an ISO timestamp.
+ *
+ * @param cursor - Stored cursor string, when a prior run recorded one.
+ * @returns Cursor ISO timestamp, or `null` when absent or malformed.
+ */
+function parseCursorIso(cursor: string | undefined): string | null {
+  if (cursor === undefined || cursor.length === 0) return null;
+  const parsed = Date.parse(cursor);
+
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : null;
 }
 
 function getErrorMessage(error: unknown): string {

@@ -113,6 +113,15 @@ describe("zendesk connector ingestion", () => {
         updatedAt: "2026-08-21T09:00:00Z",
       },
     ]);
+
+    // The next run resumes from the stored incremental end time.
+    const state = JSON.parse(
+      await readFile(
+        path.join(home, ".openwiki/connectors/zendesk/state.json"),
+        "utf8",
+      ),
+    ) as { latestIds: Record<string, string> };
+    expect(Number.parseInt(state.latestIds.tickets, 10)).toBeGreaterThan(0);
   });
 
   test("skips when not enabled and errors without credentials", async () => {

@@ -97,6 +97,20 @@ describe("stripe connector ingestion", () => {
       },
     ]);
     expect(result.message).toContain("1 Stripe event");
+
+    // The second run resumes from the stored per-stream high-water mark
+    // instead of re-reading the whole lookback window.
+    const state = JSON.parse(
+      await readFile(
+        path.join(home, ".openwiki/connectors/stripe/state.json"),
+        "utf8",
+      ),
+    ) as { latestIds: Record<string, string> };
+    expect(state.latestIds.events).toBe("1700000000");
+
+    requests.length = 0;
+    await connector.ingest();
+    expect(requests[0]).toContain("created%5Bgte%5D=1700000000");
   });
 
   test("skips when not enabled and errors without credentials", async () => {

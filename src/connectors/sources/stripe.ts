@@ -92,12 +92,17 @@ async function ingest(
       warnings,
     });
   }
-
-  // Stripe event timestamps are second-resolution Unix epoch seconds.
+  // Stripe event timestamps are second-resolution Unix epoch seconds. A prior
+  // run's high-water mark resumes the stream; an explicit windowHours override
+  // re-opens a bounded window instead.
   const lookbackHours = normalizeLookbackHours(
     options.windowHours ?? config.lookbackHours,
   );
-  const createdGte = Math.floor(Date.now() / 1000) - lookbackHours * 60 * 60;
+  const cursorSeconds = parseCursorSeconds(state.latestIds?.events);
+  const createdGte =
+    options.windowHours === undefined && cursorSeconds !== null
+      ? cursorSeconds
+      : Math.floor(Date.now() / 1000) - lookbackHours * 60 * 60;
   const maxEvents = normalizeMaxEvents(options.limit ?? config.maxEvents);
 
   try {
@@ -118,6 +123,16 @@ async function ingest(
       }),
     );
 
+    const latestEventSeconds = events.reduce((latest, event) => {
+      const createdSeconds = Math.floor(
+        new Date(event.createdAt).getTime() / 1000,
+      );
+
+      return Number.isFinite(createdSeconds) && createdSeconds > latest
+        ? createdSeconds
+        : latest;
+    }, cursorSeconds ?? 0);
+
     return finishStripeRun({
       message: `Fetched ${events.length} Stripe event${
         events.length === 1 ? "" : "s"
@@ -127,6 +142,9 @@ async function ingest(
       state,
       status: "success",
       warnings,
+      ...(latestEventSeconds > 0
+        ? { latestIds: { events: String(latestEventSeconds) } }
+        : {}),
     });
   } catch (error) {
     warnings.push(`events: ${getErrorMessage(error)}`);
@@ -148,6 +166,7 @@ async function finishStripeRun({
   state,
   status,
   warnings,
+  latestIds,
 }: {
   message: string;
   rawFiles: string[];
@@ -155,16 +174,21 @@ async function finishStripeRun({
   state: Awaited<ReturnType<typeof readConnectorState>>;
   status: ConnectorIngestResult["status"];
   warnings: string[];
+  latestIds?: Record<string, string>;
 }): Promise<ConnectorIngestResult> {
   await writeConnectorState(
     "stripe",
-    updateStateWithRun(state, {
-      at: new Date().toISOString(),
-      rawFiles,
-      runId,
-      status,
-      warnings,
-    }),
+    updateStateWithRun(
+      state,
+      {
+        at: new Date().toISOString(),
+        rawFiles,
+        runId,
+        status,
+        warnings,
+      },
+      latestIds,
+    ),
   );
 
   return {
@@ -266,6 +290,19 @@ function normalizeLookbackHours(windowHours: number | undefined): number {
       : 24;
 
   return Math.max(1, Math.min(720, Math.trunc(hours)));
+}
+
+/**
+ * Reads the stored per-stream high-water mark as epoch seconds.
+ *
+ * @param cursor - Stored cursor string, when a prior run recorded one.
+ * @returns Cursor seconds, or `null` when absent or malformed.
+ */
+function parseCursorSeconds(cursor: string | undefined): number | null {
+  if (cursor === undefined || cursor.length === 0) return null;
+  const parsed = Number.parseInt(cursor, 10);
+
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
 }
 
 function normalizeMaxEvents(maxEvents: number | undefined): number {

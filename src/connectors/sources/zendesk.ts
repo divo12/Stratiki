@@ -119,9 +119,13 @@ async function ingest(
     options.windowHours ?? config.lookbackHours,
   );
   const maxTickets = normalizeMaxTickets(options.limit ?? config.maxTickets);
-  const startTime = Math.floor(
-    (Date.now() - lookbackHours * 60 * 60 * 1000) / 1000,
-  );
+  // The incremental API is cursor-native: resume from the prior run's end
+  // time unless an explicit windowHours override re-opens a bounded window.
+  const cursorSeconds = parseCursorSeconds(state.latestIds?.tickets);
+  const startTime =
+    options.windowHours === undefined && cursorSeconds !== null
+      ? cursorSeconds
+      : Math.floor((Date.now() - lookbackHours * 60 * 60 * 1000) / 1000);
 
   try {
     const tickets = await listRecentTickets(
@@ -152,6 +156,9 @@ async function ingest(
       state,
       status: "success",
       warnings,
+      latestIds: {
+        tickets: String(Math.floor(Date.now() / 1000) - 60),
+      },
     });
   } catch (error) {
     warnings.push(`tickets: ${getErrorMessage(error)}`);
@@ -173,6 +180,7 @@ async function finishZendeskRun({
   state,
   status,
   warnings,
+  latestIds,
 }: {
   message: string;
   rawFiles: string[];
@@ -180,16 +188,21 @@ async function finishZendeskRun({
   state: Awaited<ReturnType<typeof readConnectorState>>;
   status: ConnectorIngestResult["status"];
   warnings: string[];
+  latestIds?: Record<string, string>;
 }): Promise<ConnectorIngestResult> {
   await writeConnectorState(
     "zendesk",
-    updateStateWithRun(state, {
-      at: new Date().toISOString(),
-      rawFiles,
-      runId,
-      status,
-      warnings,
-    }),
+    updateStateWithRun(
+      state,
+      {
+        at: new Date().toISOString(),
+        rawFiles,
+        runId,
+        status,
+        warnings,
+      },
+      latestIds,
+    ),
   );
 
   return {
@@ -282,6 +295,19 @@ function normalizeMaxTickets(maxTickets: number | undefined): number {
       : 200;
 
   return Math.max(1, Math.min(1000, Math.trunc(limit)));
+}
+
+/**
+ * Reads the stored per-stream high-water mark as epoch seconds.
+ *
+ * @param cursor - Stored cursor string, when a prior run recorded one.
+ * @returns Cursor seconds, or `null` when absent or malformed.
+ */
+function parseCursorSeconds(cursor: string | undefined): number | null {
+  if (cursor === undefined || cursor.length === 0) return null;
+  const parsed = Number.parseInt(cursor, 10);
+
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
 }
 
 function getErrorMessage(error: unknown): string {

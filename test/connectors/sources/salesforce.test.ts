@@ -98,6 +98,22 @@ describe("salesforce connector ingestion", () => {
       await readFile(result.rawFiles[0] ?? "", "utf8"),
     ) as { records: Record<string, Record<string, unknown>[]> };
     expect(dump.records.Account).toEqual([{ Id: "001", Name: "Acme" }]);
+
+    // The second run resumes from the stored per-stream high-water mark.
+    const state = JSON.parse(
+      await readFile(
+        path.join(home, ".openwiki/connectors/salesforce/state.json"),
+        "utf8",
+      ),
+    ) as { latestIds: Record<string, string> };
+    expect(typeof state.latestIds.records).toBe("string");
+    expect(Date.parse(state.latestIds.records ?? "")).not.toBeNaN();
+
+    queries.length = 0;
+    await connector.ingest();
+    expect(queries[0]?.q).toContain(
+      `LastModifiedDate >= ${state.latestIds.records}`,
+    );
   });
 
   test("skips when not enabled and errors without credentials", async () => {
