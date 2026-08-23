@@ -1,4 +1,4 @@
-# OpenWiki init reviewers
+# Stratiki init reviewers
 
 Use the host's native delegation mechanism for these independent, read-only
 roles. If delegation is unavailable, run each role sequentially in the main

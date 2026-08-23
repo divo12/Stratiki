@@ -108,25 +108,25 @@ describe("OpenWiki MCP adapter", () => {
     const fixture = await connect(
       provider(
         {
-          name: "openwiki_begin",
+          name: "stratiki_begin",
           description: "Begin.",
           schema: z.object({ mode: z.enum(["init", "update"]) }).strict(),
           handle: begin,
         },
         {
-          name: "openwiki_inspect_claims",
+          name: "stratiki_inspect_claims",
           description: "Inspect Claims.",
           schema: z.object({ runId: z.string() }).strict(),
           handle: inspect,
         },
         {
-          name: "openwiki_resolve_claims",
+          name: "stratiki_resolve_claims",
           description: "Resolve Claims.",
           schema: z.object({ runId: z.string() }).strict(),
           handle: resolve,
         },
         {
-          name: "openwiki_finish",
+          name: "stratiki_finish",
           description: "Finish.",
           schema: z.object({ runId: z.string() }).strict(),
           handle: finish,
@@ -138,10 +138,10 @@ describe("OpenWiki MCP adapter", () => {
       const listed = await fixture.client.listTools();
 
       expect(listed.tools.map((tool) => tool.name)).toEqual([
-        "openwiki_begin",
-        "openwiki_inspect_claims",
-        "openwiki_resolve_claims",
-        "openwiki_finish",
+        "stratiki_begin",
+        "stratiki_inspect_claims",
+        "stratiki_resolve_claims",
+        "stratiki_finish",
       ]);
       expect(listed.tools.map((tool) => tool.name)).not.toEqual(
         expect.arrayContaining(["read_file", "write_file", "edit_file"]),
@@ -149,9 +149,9 @@ describe("OpenWiki MCP adapter", () => {
       const instructions = fixture.client.getInstructions();
       expect(instructions).toContain("Use the host's native repository tools");
       expect(instructions).toContain("Resolve the absolute Git top-level");
-      expect(instructions).toContain("openwiki_inspect_claims");
-      expect(instructions).toContain("openwiki_resolve_claims");
-      expect(instructions).toContain("Call openwiki_finish after authoring");
+      expect(instructions).toContain("stratiki_inspect_claims");
+      expect(instructions).toContain("stratiki_resolve_claims");
+      expect(instructions).toContain("Call stratiki_finish after authoring");
       expect(instructions).toContain("openwiki/_plan.md");
       expect(instructions).toContain("openwiki/_skeleton.md");
       expect(instructions).not.toContain("logs, plans, or skeletons");
@@ -163,7 +163,7 @@ describe("OpenWiki MCP adapter", () => {
   test("returns text JSON and structured content for successful calls", async () => {
     const fixture = await connect(
       provider({
-        name: "openwiki_begin",
+        name: "stratiki_begin",
         description: "Begin.",
         schema: z.object({ mode: z.literal("init") }).strict(),
         handle: () => Promise.resolve({ runId: "run-1", mode: "init" }),
@@ -172,7 +172,7 @@ describe("OpenWiki MCP adapter", () => {
 
     try {
       const result = await fixture.client.callTool({
-        name: "openwiki_begin",
+        name: "stratiki_begin",
         arguments: { mode: "init" },
       });
 
@@ -194,7 +194,7 @@ describe("OpenWiki MCP adapter", () => {
     const handle = vi.fn(() => Promise.resolve({ runId: "unreachable" }));
     const fixture = await connect(
       provider({
-        name: "openwiki_begin",
+        name: "stratiki_begin",
         description: "Begin.",
         schema: z.object({ mode: z.literal("init") }).strict(),
         handle,
@@ -203,7 +203,7 @@ describe("OpenWiki MCP adapter", () => {
 
     try {
       const result = await fixture.client.callTool({
-        name: "openwiki_begin",
+        name: "stratiki_begin",
         arguments: { mode: "update", extra: true },
       });
 
@@ -217,7 +217,7 @@ describe("OpenWiki MCP adapter", () => {
   test("preserves domain error codes", async () => {
     const fixture = await connect(
       provider({
-        name: "openwiki_finish",
+        name: "stratiki_finish",
         description: "Finish.",
         schema: z.object({ runId: z.string() }).strict(),
         handle: () =>
@@ -232,7 +232,7 @@ describe("OpenWiki MCP adapter", () => {
 
     try {
       const result = await fixture.client.callTool({
-        name: "openwiki_finish",
+        name: "stratiki_finish",
         arguments: { runId: "missing" },
       });
 
@@ -256,7 +256,7 @@ describe("OpenWiki MCP adapter", () => {
       .mockImplementation(() => true);
     const fixture = await connect(
       provider({
-        name: "openwiki_finish",
+        name: "stratiki_finish",
         description: "Finish.",
         schema: z.object({ runId: z.string() }).strict(),
         handle: () => Promise.reject(new Error("SENSITIVE_EXCEPTION_SENTINEL")),
@@ -265,15 +265,15 @@ describe("OpenWiki MCP adapter", () => {
 
     try {
       const result = await fixture.client.callTool({
-        name: "openwiki_finish",
+        name: "stratiki_finish",
         arguments: { runId: "run-1" },
       });
       const serialized = JSON.stringify(result);
 
       expect(result.isError).toBe(true);
-      expect(serialized).toContain("OpenWiki MCP operation failed.");
+      expect(serialized).toContain("Stratiki MCP operation failed.");
       expect(serialized).not.toContain("SENSITIVE_EXCEPTION_SENTINEL");
-      expect(stderr).toHaveBeenCalledWith("OpenWiki MCP operation failed.\n");
+      expect(stderr).toHaveBeenCalledWith("Stratiki MCP operation failed.\n");
       expect(JSON.stringify(stderr.mock.calls)).not.toContain(
         "SENSITIVE_EXCEPTION_SENTINEL",
       );
@@ -294,14 +294,14 @@ describe("OpenWiki MCP lifecycle transport", () => {
     try {
       const listed = await fixture.client.listTools();
       expect(listed.tools.map((tool) => tool.name)).toEqual([
-        "openwiki_begin",
-        "openwiki_inspect_claims",
-        "openwiki_resolve_claims",
-        "openwiki_finish",
+        "stratiki_begin",
+        "stratiki_inspect_claims",
+        "stratiki_resolve_claims",
+        "stratiki_finish",
       ]);
 
       const begin = await fixture.client.callTool({
-        name: "openwiki_begin",
+        name: "stratiki_begin",
         arguments: { root, mode: "init" },
       });
       expect(begin.isError).not.toBe(true);
@@ -310,7 +310,7 @@ describe("OpenWiki MCP lifecycle transport", () => {
         .parse(begin.structuredContent);
 
       const inspected = await fixture.client.callTool({
-        name: "openwiki_inspect_claims",
+        name: "stratiki_inspect_claims",
         arguments: { runId, pages: ["openwiki/quickstart.md"] },
       });
       expect(inspected).toMatchObject({
@@ -320,7 +320,7 @@ describe("OpenWiki MCP lifecycle transport", () => {
       });
 
       const resolved = await fixture.client.callTool({
-        name: "openwiki_resolve_claims",
+        name: "stratiki_resolve_claims",
         arguments: {
           runId,
           pages: [
@@ -358,7 +358,7 @@ describe("OpenWiki MCP lifecycle transport", () => {
       );
 
       const finish = await fixture.client.callTool({
-        name: "openwiki_finish",
+        name: "stratiki_finish",
         arguments: { runId },
       });
       expect(finish).toMatchObject({

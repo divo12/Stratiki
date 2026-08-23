@@ -13,14 +13,14 @@ export const HOST_TARGETS = {
     displayName: "Codex",
     producerActor: "codex",
     user: {
-      skillDirectory: ".agents/skills/openwiki",
+      skillDirectory: ".agents/skills/stratiki",
       mcpConfig: {
         kind: "codex-toml",
         relativePath: ".codex/config.toml",
       },
     },
     project: {
-      skillDirectory: ".agents/skills/openwiki",
+      skillDirectory: ".agents/skills/stratiki",
       mcpConfig: {
         kind: "codex-toml",
         relativePath: ".codex/config.toml",
@@ -33,11 +33,11 @@ export const HOST_TARGETS = {
     displayName: "Claude Code",
     producerActor: "claude-code",
     user: {
-      skillDirectory: ".claude/skills/openwiki",
+      skillDirectory: ".claude/skills/stratiki",
       mcpConfig: { kind: "json", relativePath: ".claude.json" },
     },
     project: {
-      skillDirectory: ".claude/skills/openwiki",
+      skillDirectory: ".claude/skills/stratiki",
       mcpConfig: { kind: "json", relativePath: ".mcp.json" },
     },
     documentationUrl: "https://docs.anthropic.com/en/docs/claude-code/mcp",
@@ -73,7 +73,7 @@ export function defaultMcpServerCommand(
   target: HostTargetId,
 ): HostMcpServerCommand {
   return {
-    command: "openwiki",
+    command: "stratiki",
     args: ["mcp", "--host", target],
   };
 }

@@ -89,24 +89,24 @@ describe("host lifecycle protocol", () => {
     const tools = manager.tools();
 
     expect(tools.map((tool) => tool.name)).toEqual([
-      "openwiki_begin",
-      "openwiki_inspect_claims",
-      "openwiki_resolve_claims",
-      "openwiki_finish",
+      "stratiki_begin",
+      "stratiki_inspect_claims",
+      "stratiki_resolve_claims",
+      "stratiki_finish",
     ]);
     expect(tools).toHaveLength(4);
     expect(
       tools.some((tool) => /read|write|edit|delete/u.test(tool.name)),
     ).toBe(false);
 
-    const begin = tools.find((tool) => tool.name === "openwiki_begin");
+    const begin = tools.find((tool) => tool.name === "stratiki_begin");
     const inspect = tools.find(
-      (tool) => tool.name === "openwiki_inspect_claims",
+      (tool) => tool.name === "stratiki_inspect_claims",
     );
     const resolve = tools.find(
-      (tool) => tool.name === "openwiki_resolve_claims",
+      (tool) => tool.name === "stratiki_resolve_claims",
     );
-    const finish = tools.find((tool) => tool.name === "openwiki_finish");
+    const finish = tools.find((tool) => tool.name === "stratiki_finish");
     expect(begin).toBeDefined();
     expect(inspect).toBeDefined();
     expect(resolve).toBeDefined();

@@ -92,7 +92,7 @@ describe("runIntegrationsCommand", () => {
     vi.mocked(installHostIntegration).mockResolvedValue({
       target: "codex",
       scope: "project",
-      skillDirectory: "/repo/.agents/skills/openwiki",
+      skillDirectory: "/repo/.agents/skills/stratiki",
       mcpConfig: "/repo/.codex/config.toml",
       changed: true,
     });
@@ -113,13 +113,13 @@ describe("runIntegrationsCommand", () => {
     );
     expect(stdout.join("")).toBe(
       "install Codex\n" +
-        "skill: /repo/.agents/skills/openwiki\n" +
+        "skill: /repo/.agents/skills/stratiki\n" +
         "mcp: /repo/.codex/config.toml\n" +
-        "\nOpenWiki is ready for Codex.\n\n" +
+        "\nStratiki is ready for Codex.\n\n" +
         "Next:\n" +
         "  1. Restart Codex in this repository.\n" +
-        "  2. Confirm the openwiki MCP server is available.\n" +
-        "  3. Ask: “Initialize OpenWiki for this repository.”\n",
+        "  2. Confirm the stratiki MCP server is available.\n" +
+        "  3. Ask: “Initialize Stratiki for this repository.”\n",
     );
     expect(stdout.join("")).not.toMatch(/API key/iu);
     expect(process.exitCode).toBe(0);
@@ -129,10 +129,10 @@ describe("runIntegrationsCommand", () => {
     vi.mocked(installHostIntegration).mockResolvedValue({
       target: "claude",
       scope: "user",
-      skillDirectory: "/repo/.claude/skills/openwiki",
+      skillDirectory: "/repo/.claude/skills/stratiki",
       mcpConfig: "/repo/.mcp.json",
       changed: false,
-      backupPath: "/repo/.claude/skills/openwiki.backup",
+      backupPath: "/repo/.claude/skills/stratiki.backup",
     });
 
     await runIntegrationsCommand({
@@ -151,7 +151,7 @@ describe("runIntegrationsCommand", () => {
     );
     expect(stdout.join("")).toContain("unchanged Claude Code\n");
     expect(stdout.join("")).toContain(
-      "backup: /repo/.claude/skills/openwiki.backup\n",
+      "backup: /repo/.claude/skills/stratiki.backup\n",
     );
     expect(stdout.join("")).toContain(
       "Restart Claude Code, then open any Git repository.",
@@ -162,7 +162,7 @@ describe("runIntegrationsCommand", () => {
     vi.mocked(uninstallHostIntegration).mockResolvedValue({
       target: "claude",
       scope: "project",
-      skillDirectory: "/repo/.claude/skills/openwiki",
+      skillDirectory: "/repo/.claude/skills/stratiki",
       mcpConfig: "/repo/.mcp.json",
       changed: true,
     });

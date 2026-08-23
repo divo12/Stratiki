@@ -24,11 +24,11 @@ import {
 import type { HostMcpServerCommand } from "../../src/integrations/install/types.ts";
 
 const ENTRY: HostMcpServerCommand = {
-  command: "openwiki",
+  command: "stratiki",
   args: ["mcp", "--host", "claude"],
 };
 const CODEX_ENTRY: HostMcpServerCommand = {
-  command: "openwiki",
+  command: "stratiki",
   args: ["mcp", "--host", "codex"],
 };
 const temporaryRoots: string[] = [];
@@ -88,7 +88,7 @@ describe("JSON MCP config ownership", () => {
       project: "kept",
       mcpServers: {
         other: { command: "other" },
-        openwiki: ENTRY,
+        stratiki: ENTRY,
       },
     });
     await expect(getJsonMcpEntryStatus(filePath, ENTRY)).resolves.toBe(
@@ -110,14 +110,14 @@ describe("JSON MCP config ownership", () => {
     const filePath = path.join(root, ".mcp.json");
     await writeFile(
       filePath,
-      '{"mcpServers":{"openwiki":{"args":["mcp","--host","claude"],"command":"openwiki"}}}\n',
+      '{"mcpServers":{"stratiki":{"args":["mcp","--host","claude"],"command":"stratiki"}}}\n',
       "utf8",
     );
     await expect(installJsonMcpEntry(filePath, ENTRY)).resolves.toBe(false);
 
     await writeFile(
       filePath,
-      '{"mcpServers":{"openwiki":{"command":"custom","args":[]}}}\n',
+      '{"mcpServers":{"stratiki":{"command":"custom","args":[]}}}\n',
       "utf8",
     );
     const before = await readFile(filePath, "utf8");
@@ -154,7 +154,7 @@ describe("JSON MCP config ownership", () => {
     };
     await writeFile(
       filePath,
-      `${JSON.stringify({ mcpServers: { openwiki: ENTRY } })}\n`,
+      `${JSON.stringify({ mcpServers: { stratiki: ENTRY } })}\n`,
       "utf8",
     );
 
@@ -162,7 +162,7 @@ describe("JSON MCP config ownership", () => {
       installJsonMcpEntry(filePath, localEntry, ENTRY),
     ).resolves.toBe(true);
     expect(JSON.parse(await readFile(filePath, "utf8"))).toMatchObject({
-      mcpServers: { openwiki: localEntry },
+      mcpServers: { stratiki: localEntry },
     });
   });
 });
@@ -179,7 +179,7 @@ describe("Codex TOML MCP block ownership", () => {
     );
     const installed = await readFile(filePath, "utf8");
     expect(installed.startsWith(prefix)).toBe(true);
-    expect(installed).toContain('[mcp_servers.openwiki]\ncommand = "openwiki"');
+    expect(installed).toContain('[mcp_servers.stratiki]\ncommand = "stratiki"');
     expect(installed).toContain('args = ["mcp", "--host", "codex"]');
     await expect(getCodexMcpBlockStatus(filePath, CODEX_ENTRY)).resolves.toBe(
       "installed",
@@ -194,10 +194,10 @@ describe("Codex TOML MCP block ownership", () => {
   });
 
   test.each([
-    "# OPENWIKI:MCP:START\n",
-    "# OPENWIKI:MCP:END\n",
-    "# OPENWIKI:MCP:END\n# OPENWIKI:MCP:START\n",
-    "# OPENWIKI:MCP:START\n# OPENWIKI:MCP:START\n# OPENWIKI:MCP:END\n",
+    "# STRATIKI:MCP:START\n",
+    "# STRATIKI:MCP:END\n",
+    "# STRATIKI:MCP:END\n# STRATIKI:MCP:START\n",
+    "# STRATIKI:MCP:START\n# STRATIKI:MCP:START\n# STRATIKI:MCP:END\n",
   ])("rejects invalid marker structure byte-identically", async (content) => {
     const root = await createRoot();
     const filePath = path.join(root, "config.toml");
@@ -212,18 +212,18 @@ describe("Codex TOML MCP block ownership", () => {
   test("rejects unmanaged and modified OpenWiki tables", async () => {
     const root = await createRoot();
     const filePath = path.join(root, "config.toml");
-    const unmanaged = '[mcp_servers.openwiki]\ncommand = "custom"\n';
+    const unmanaged = '[mcp_servers.stratiki]\ncommand = "custom"\n';
     await writeFile(filePath, unmanaged, "utf8");
     await expect(
       installCodexMcpBlock(filePath, CODEX_ENTRY),
     ).rejects.toMatchObject({ code: "conflict" });
 
     const modified = [
-      "# OPENWIKI:MCP:START",
-      "[mcp_servers.openwiki]",
+      "# STRATIKI:MCP:START",
+      "[mcp_servers.stratiki]",
       'command = "custom"',
       'args = ["mcp", "--host", "codex"]',
-      "# OPENWIKI:MCP:END",
+      "# STRATIKI:MCP:END",
       "",
     ].join("\n");
     await writeFile(filePath, modified, "utf8");
@@ -237,8 +237,8 @@ describe("Codex TOML MCP block ownership", () => {
 
     const duplicateTable = `${modified.replace(
       'command = "custom"',
-      'command = "openwiki"',
-    )}\n[mcp_servers.openwiki]\ncommand = "shadow"\n`;
+      'command = "stratiki"',
+    )}\n[mcp_servers.stratiki]\ncommand = "shadow"\n`;
     await writeFile(filePath, duplicateTable, "utf8");
     await expect(
       installCodexMcpBlock(filePath, CODEX_ENTRY),

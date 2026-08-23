@@ -9,7 +9,7 @@ import type {
   HostTargetId,
 } from "./types.js";
 
-const RECEIPT_FILE = ".openwiki-install.json";
+const RECEIPT_FILE = ".stratiki-install.json";
 const ALLOWED_BUNDLE_ROOTS = new Set(["SKILL.md", "agents", "references"]);
 
 /**
@@ -19,7 +19,7 @@ export interface SkillReceipt {
   /**
    * Package that owns the installed files.
    */
-  package: "openwiki";
+  package: "stratiki";
 
   /**
    * OpenWiki package version that produced the installation.
@@ -80,7 +80,7 @@ export function resolveCanonicalSkillBundle(moduleUrl: string): string {
     path.dirname(fileURLToPath(moduleUrl)),
     "../../../",
   );
-  return path.join(packageRoot, "integrations", "openwiki");
+  return path.join(packageRoot, "integrations", "stratiki");
 }
 
 /**
@@ -177,7 +177,7 @@ export async function writeReceipt(
   mcpServerCommand: HostMcpServerCommand,
 ): Promise<void> {
   const receipt: SkillReceipt = {
-    package: "openwiki",
+    package: "stratiki",
     version: OPENWIKI_VERSION,
     target,
     mcpServerCommand,
@@ -261,7 +261,7 @@ async function readReceipt(
   if (!isRecord(parsed)) throw new Error("Invalid skill receipt.");
   if (
     !hasExpectedReceiptKeys(parsed) ||
-    parsed.package !== "openwiki" ||
+    parsed.package !== "stratiki" ||
     typeof parsed.version !== "string" ||
     !parsed.version ||
     parsed.target !== target ||
@@ -271,7 +271,7 @@ async function readReceipt(
     throw new Error("Invalid skill receipt.");
   }
   return {
-    package: "openwiki",
+    package: "stratiki",
     version: parsed.version,
     target,
     mcpServerCommand: parsed.mcpServerCommand,

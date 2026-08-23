@@ -118,7 +118,7 @@ export interface InstallOptions {
   /**
    * Internal executable override used by repository development tooling.
    *
-   * @default undefined - launch the installed `openwiki` executable.
+   * @default undefined - launch the installed `stratiki` executable.
    */
   mcpServerCommand?: HostMcpServerCommand;
 }

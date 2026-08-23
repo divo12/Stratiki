@@ -3,8 +3,8 @@ import { HostIntegrationError } from "../core/errors.js";
 import { writeTextAtomic } from "./atomic-file.js";
 import type { HostIntegrationStatus, HostMcpServerCommand } from "./types.js";
 
-const START = "# OPENWIKI:MCP:START";
-const END = "# OPENWIKI:MCP:END";
+const START = "# STRATIKI:MCP:START";
+const END = "# STRATIKI:MCP:END";
 
 /**
  * Byte range occupied by one complete managed TOML block.
@@ -61,7 +61,7 @@ export async function installCodexMcpBlock(
   if (hasUnmanagedOpenWikiTable(current)) {
     throw new HostIntegrationError(
       "conflict",
-      `An unmanaged openwiki MCP table already exists in ${filePath}.`,
+      `An unmanaged stratiki MCP table already exists in ${filePath}.`,
     );
   }
 
@@ -140,7 +140,7 @@ function hasUnmanagedOpenWikiTable(
   managed?: MarkerRange,
 ): boolean {
   for (const match of content.matchAll(
-    /^\s*\[mcp_servers\.openwiki\]\s*$/gmu,
+    /^\s*\[mcp_servers\.stratiki\]\s*$/gmu,
   )) {
     const index = match.index;
     if (!managed || index < managed.start || index >= managed.end) return true;
@@ -156,7 +156,7 @@ function hasUnmanagedOpenWikiTable(
  */
 function renderBlock(entry: HostMcpServerCommand): string {
   return `${START}
-[mcp_servers.openwiki]
+[mcp_servers.stratiki]
 command = ${JSON.stringify(entry.command)}
 args = [${entry.args.map((argument) => JSON.stringify(argument)).join(", ")}]
 ${END}

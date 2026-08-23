@@ -15,13 +15,13 @@ export type HostRunMode = "init" | "update";
  * Stable names in the complete V1 host lifecycle tool set.
  */
 export type ProtocolToolName =
-  | "openwiki_begin"
-  | "openwiki_inspect_claims"
-  | "openwiki_resolve_claims"
-  | "openwiki_finish";
+  | "stratiki_begin"
+  | "stratiki_inspect_claims"
+  | "stratiki_resolve_claims"
+  | "stratiki_finish";
 
 /**
- * Validated request accepted by `openwiki_begin`.
+ * Validated request accepted by `stratiki_begin`.
  */
 export interface BeginRequest {
   /**
@@ -43,7 +43,7 @@ export interface BeginRequest {
 }
 
 /**
- * Validated run selector accepted by `openwiki_finish`.
+ * Validated run selector accepted by `stratiki_finish`.
  */
 export interface RunRequest {
   /**
@@ -53,7 +53,7 @@ export interface RunRequest {
 }
 
 /**
- * Validated input accepted by `openwiki_begin`.
+ * Validated input accepted by `stratiki_begin`.
  */
 export const BeginInput: z.ZodType<BeginRequest> = z
   .object({
@@ -64,7 +64,7 @@ export const BeginInput: z.ZodType<BeginRequest> = z
   .strict();
 
 /**
- * Validated run selector accepted by `openwiki_finish`.
+ * Validated run selector accepted by `stratiki_finish`.
  */
 export const RunInput: z.ZodType<RunRequest> = z
   .object({
@@ -73,7 +73,7 @@ export const RunInput: z.ZodType<RunRequest> = z
   .strict();
 
 /**
- * Validated request accepted by `openwiki_inspect_claims`.
+ * Validated request accepted by `stratiki_inspect_claims`.
  */
 export const InspectClaimsInput = z
   .object({
@@ -86,7 +86,7 @@ export const InspectClaimsInput = z
   });
 
 /**
- * Validated request accepted by `openwiki_resolve_claims`.
+ * Validated request accepted by `stratiki_resolve_claims`.
  */
 export const ResolveClaimsInput = z
   .object({
