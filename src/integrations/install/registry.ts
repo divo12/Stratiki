@@ -42,6 +42,54 @@ export const HOST_TARGETS = {
     },
     documentationUrl: "https://docs.anthropic.com/en/docs/claude-code/mcp",
   },
+  cursor: {
+    id: "cursor",
+    displayName: "Cursor",
+    producerActor: "cursor",
+    user: {
+      skillDirectory: ".cursor/skills/stratiki",
+      mcpConfig: { kind: "json", relativePath: ".cursor/mcp.json" },
+    },
+    project: {
+      skillDirectory: ".cursor/skills/stratiki",
+      mcpConfig: { kind: "json", relativePath: ".cursor/mcp.json" },
+    },
+    documentationUrl: "https://cursor.com/docs/mcp",
+  },
+  antigravity: {
+    id: "antigravity",
+    displayName: "Antigravity",
+    producerActor: "antigravity",
+    user: {
+      skillDirectory: ".gemini/antigravity-cli/skills/stratiki",
+      mcpConfig: {
+        kind: "json",
+        relativePath: ".gemini/config/mcp_config.json",
+      },
+    },
+    project: {
+      skillDirectory: ".agents/skills/stratiki",
+      mcpConfig: { kind: "json", relativePath: ".agents/mcp_config.json" },
+    },
+    documentationUrl: "https://antigravity.google/docs/mcp/",
+  },
+  opencode: {
+    id: "opencode",
+    displayName: "OpenCode",
+    producerActor: "opencode",
+    user: {
+      skillDirectory: ".config/opencode/skills/stratiki",
+      mcpConfig: {
+        kind: "opencode-json",
+        relativePath: ".config/opencode/opencode.json",
+      },
+    },
+    project: {
+      skillDirectory: ".opencode/skills/stratiki",
+      mcpConfig: { kind: "opencode-json", relativePath: "opencode.json" },
+    },
+    documentationUrl: "https://opencode.ai/docs/mcp-servers/",
+  },
 } as const satisfies Record<HostTargetId, HostTarget>;
 
 /**
