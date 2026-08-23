@@ -10,6 +10,7 @@ import {
 import { fetchWithResilience } from "../http.js";
 import { openWikiConnectorsDisplayPath } from "../../config/openwiki-home.js";
 import type {
+  ConnectorArtifactRecord,
   ConnectorDefinition,
   ConnectorIngestOptions,
   ConnectorIngestResult,
@@ -76,6 +77,7 @@ export function createGoogleAdsConnector(): ConnectorRuntime {
         ),
       );
     },
+    artifactRecords: readGoogleAdsRecordEpisodes,
     ingest,
   };
 }
@@ -284,6 +286,32 @@ type CampaignPerformanceRow = {
   date: string | undefined;
   impressions: number | undefined;
 };
+
+/**
+ * Splits a parsed raw dump into per-campaign-day episodes.
+ *
+ * @param parsed - Parsed google-ads-performance.json content.
+ * @returns One episode per row, or `null` when the shape does not match.
+ */
+function readGoogleAdsRecordEpisodes(
+  parsed: unknown,
+): ConnectorArtifactRecord[] | null {
+  if (!isRecord(parsed) || !Array.isArray(parsed.rows)) return null;
+
+  return parsed.rows.flatMap((row) => {
+    if (!isRecord(row) || typeof row.campaignId !== "string") return [];
+    const day = typeof row.date === "string" ? row.date : "undated";
+
+    return [
+      {
+        content: JSON.stringify(row),
+        eventTimeIso:
+          typeof row.date === "string" ? `${row.date}T23:59:59Z` : "",
+        sourceRef: `google-ads-performance.json#${row.campaignId}#${day}`,
+      },
+    ];
+  });
+}
 
 function gaqlDate(daysAgo: number): string {
   return new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000)

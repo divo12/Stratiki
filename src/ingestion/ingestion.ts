@@ -8,6 +8,7 @@ import type {
   ConnectorRuntime,
 } from "../connectors/types.js";
 import { loadOpenWikiEnv } from "../config/env.js";
+import path from "node:path";
 import {
   readOpenWikiOnboardingConfig,
   type OnboardingSourceInstanceConfig,
@@ -567,23 +568,27 @@ async function admitRawEpisodes({
           continue;
         }
 
-        const result = store.admit({
-          bytes: Buffer.byteLength(content, "utf8"),
-          connectorId: connector.id,
+        const nowIso = new Date().toISOString();
+        for (const episode of planArtifactEpisodes(
+          connector,
+          filePath,
           content,
-          eventTimeIso: resolveArtifactEventTime(
-            connector,
-            content,
-            new Date().toISOString(),
-          ),
-          runId,
-          sourceRef: filePath,
-        });
-        if (result.outcome === "rejected") {
-          emitText(
-            emit,
-            `Episode rejected for ${connector.id} (${result.decision.rejection.reason}): ${filePath}\n`,
-          );
+          nowIso,
+        )) {
+          const result = store.admit({
+            bytes: Buffer.byteLength(episode.content, "utf8"),
+            connectorId: connector.id,
+            content: episode.content,
+            eventTimeIso: episode.eventTimeIso,
+            runId,
+            sourceRef: episode.sourceRef,
+          });
+          if (result.outcome === "rejected") {
+            emitText(
+              emit,
+              `Episode rejected for ${connector.id} (${result.decision.rejection.reason}): ${episode.sourceRef}\n`,
+            );
+          }
         }
       }
     } finally {
@@ -595,6 +600,94 @@ async function admitRawEpisodes({
       `Episode store unavailable; continuing without episode tracking: ${getErrorMessage(error)}\n`,
     );
   }
+}
+
+/**
+ * One episode candidate produced from a raw artifact.
+ */
+export interface PlannedEpisode {
+  /** Stable serialization of the episode content. */
+  content: string;
+
+  /** Resolved source-produced timestamp (ISO 8601). */
+  eventTimeIso: string;
+
+  /** Episode identity in the store. Record-level refs exclude run IDs so
+   * unchanged records deduplicate across runs; whole-artifact refs stay
+   * run-scoped, preserving existing behavior. */
+  sourceRef: string;
+}
+
+/**
+ * Plans episodes for one raw artifact.
+ *
+ * When the connector declares `artifactRecords` and it yields records, each
+ * becomes its own episode with a run-independent ref and per-record event
+ * time. Otherwise the whole artifact is admitted as a single episode exactly
+ * as before.
+ *
+ * @param connector - Connector runtime declaring record/event-time selectors.
+ * @param filePath - Raw artifact path (run-scoped).
+ * @param content - Raw artifact content.
+ * @param fallbackIso - Run timestamp used when no better clock exists.
+ * @returns Episodes to admit, in file order.
+ */
+export function planArtifactEpisodes(
+  connector: Pick<
+    ConnectorRuntime,
+    "artifactEventTime" | "artifactRecords" | "id"
+  >,
+  filePath: string,
+  content: string,
+  fallbackIso: string,
+): PlannedEpisode[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    parsed = undefined;
+  }
+
+  const records = connector.artifactRecords?.(parsed);
+  if (records !== null && records !== undefined && records.length > 0) {
+    const artifactTime = resolveArtifactEventTime(
+      connector,
+      content,
+      fallbackIso,
+    );
+
+    return records.flatMap((record) => {
+      const eventTime = isValidIso(record.eventTimeIso)
+        ? record.eventTimeIso
+        : artifactTime;
+
+      return [
+        {
+          content: record.content,
+          eventTimeIso: eventTime,
+          sourceRef: `${path.basename(filePath)}#${record.sourceRef}`,
+        },
+      ];
+    });
+  }
+
+  return [
+    {
+      content,
+      eventTimeIso: resolveArtifactEventTime(connector, content, fallbackIso),
+      sourceRef: filePath,
+    },
+  ];
+}
+
+/**
+ * Validates that a string is a parseable ISO timestamp.
+ *
+ * @param value - Candidate timestamp.
+ * @returns Whether the value parses as a date.
+ */
+function isValidIso(value: string): boolean {
+  return value.length > 0 && Number.isFinite(Date.parse(value));
 }
 
 /**

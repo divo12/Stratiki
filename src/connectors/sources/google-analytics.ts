@@ -9,6 +9,7 @@ import {
 import { fetchWithResilience } from "../http.js";
 import { openWikiConnectorsDisplayPath } from "../../config/openwiki-home.js";
 import type {
+  ConnectorArtifactRecord,
   ConnectorDefinition,
   ConnectorIngestOptions,
   ConnectorIngestResult,
@@ -59,8 +60,33 @@ export function createGoogleAnalyticsConnector(): ConnectorRuntime {
 
       return `${parsed.dateRange.endDate}T23:59:59Z`;
     },
+    artifactRecords: readGoogleAnalyticsRecordEpisodes,
     ingest,
   };
+}
+
+/**
+ * Splits a parsed raw dump into per-report-row episodes. Rows carry no
+ * natural ID, so position within the dump identifies them.
+ *
+ * @param parsed - Parsed ga4-report.json content.
+ * @returns One episode per row, or `null` when the shape does not match.
+ */
+function readGoogleAnalyticsRecordEpisodes(
+  parsed: unknown,
+): ConnectorArtifactRecord[] | null {
+  if (!isRecord(parsed) || !Array.isArray(parsed.rows)) return null;
+
+  return parsed.rows.map((row, index) => ({
+    content: JSON.stringify(row),
+    eventTimeIso:
+      isRecord(parsed) &&
+      isRecord(parsed.dateRange) &&
+      typeof parsed.dateRange.endDate === "string"
+        ? `${parsed.dateRange.endDate}T23:59:59Z`
+        : "",
+    sourceRef: `ga4-report.json#row-${index}`,
+  }));
 }
 
 async function ingest(

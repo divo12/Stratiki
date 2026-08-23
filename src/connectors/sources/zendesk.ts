@@ -10,6 +10,7 @@ import {
 import { fetchWithResilience } from "../http.js";
 import { openWikiConnectorsDisplayPath } from "../../config/openwiki-home.js";
 import type {
+  ConnectorArtifactRecord,
   ConnectorDefinition,
   ConnectorIngestOptions,
   ConnectorIngestResult,
@@ -59,13 +60,43 @@ const definition: ConnectorDefinition = {
   requiredEnv: ["ZENDESK_EMAIL", "ZENDESK_API_TOKEN", "ZENDESK_SUBDOMAIN"],
   supportsAgenticDiscovery: false,
 };
-
 export function createZendeskConnector(): ConnectorRuntime {
   return {
     ...definition,
     artifactEventTime: (parsed) => maxIsoString(readZendeskTicketTimes(parsed)),
+    artifactRecords: readZendeskRecordEpisodes,
     ingest,
   };
+}
+
+/**
+ * Splits a parsed raw dump into per-ticket episodes.
+ *
+ * @param parsed - Parsed zendesk-tickets.json content.
+ * @returns One episode per ticket, or `null` when the shape does not match.
+ */
+function readZendeskRecordEpisodes(
+  parsed: unknown,
+): ConnectorArtifactRecord[] | null {
+  if (!isRecord(parsed) || !Array.isArray(parsed.tickets)) return null;
+
+  return parsed.tickets.flatMap((ticket) => {
+    if (
+      !isRecord(ticket) ||
+      typeof ticket.id !== "number" ||
+      typeof ticket.updatedAt !== "string"
+    ) {
+      return [];
+    }
+
+    return [
+      {
+        content: JSON.stringify(ticket),
+        eventTimeIso: ticket.updatedAt,
+        sourceRef: `tickets#${ticket.id}`,
+      },
+    ];
+  });
 }
 
 /**

@@ -10,6 +10,7 @@ import {
 import { fetchWithResilience } from "../http.js";
 import { openWikiConnectorsDisplayPath } from "../../config/openwiki-home.js";
 import type {
+  ConnectorArtifactRecord,
   ConnectorDefinition,
   ConnectorIngestOptions,
   ConnectorIngestResult,
@@ -45,11 +46,11 @@ const definition: ConnectorDefinition = {
   requiredEnv: ["STRIPE_SECRET_KEY"],
   supportsAgenticDiscovery: false,
 };
-
 export function createStripeConnector(): ConnectorRuntime {
   return {
     ...definition,
     artifactEventTime: (parsed) => maxIsoString(readStripeEventTimes(parsed)),
+    artifactRecords: readStripeRecordEpisodes,
     ingest,
   };
 }
@@ -68,6 +69,36 @@ function readStripeEventTimes(parsed: unknown): (string | undefined)[] {
       ? [event.createdAt]
       : [],
   );
+}
+
+/**
+ * Splits a parsed raw dump into per-event episodes.
+ *
+ * @param parsed - Parsed stripe-events.json content.
+ * @returns One episode per event, or `null` when the shape does not match.
+ */
+function readStripeRecordEpisodes(
+  parsed: unknown,
+): ConnectorArtifactRecord[] | null {
+  if (!isRecord(parsed) || !Array.isArray(parsed.events)) return null;
+
+  return parsed.events.flatMap((event) => {
+    if (
+      !isRecord(event) ||
+      typeof event.id !== "string" ||
+      typeof event.createdAt !== "string"
+    ) {
+      return [];
+    }
+
+    return [
+      {
+        content: JSON.stringify(event),
+        eventTimeIso: event.createdAt,
+        sourceRef: `events#${event.id}`,
+      },
+    ];
+  });
 }
 
 async function ingest(

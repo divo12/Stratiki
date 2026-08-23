@@ -10,6 +10,7 @@ import {
 import { fetchWithResilience } from "../http.js";
 import { openWikiConnectorsDisplayPath } from "../../config/openwiki-home.js";
 import type {
+  ConnectorArtifactRecord,
   ConnectorDefinition,
   ConnectorIngestOptions,
   ConnectorIngestResult,
@@ -74,8 +75,40 @@ export function createHubSpotConnector(): ConnectorRuntime {
     ...definition,
     artifactEventTime: (parsed) =>
       maxIsoString(readHubSpotModifiedTimes(parsed)),
+    artifactRecords: readHubSpotRecordEpisodes,
     ingest,
   };
+}
+
+/**
+ * Splits a parsed raw dump into per-record episodes across all object types.
+ *
+ * @param parsed - Parsed hubspot-records.json content.
+ * @returns One episode per CRM record, or `null` when the shape does not match.
+ */
+function readHubSpotRecordEpisodes(
+  parsed: unknown,
+): ConnectorArtifactRecord[] | null {
+  if (!isRecord(parsed) || !isRecord(parsed.objects)) return null;
+
+  return Object.entries(parsed.objects).flatMap(([objectType, records]) =>
+    Array.isArray(records)
+      ? records.flatMap((record) => {
+          if (!isRecord(record) || typeof record.id !== "string") return [];
+          const modified = isRecord(record.properties)
+            ? record.properties.hs_lastmodifieddate
+            : undefined;
+
+          return [
+            {
+              content: JSON.stringify(record),
+              eventTimeIso: typeof modified === "string" ? modified : "",
+              sourceRef: `${objectType}#${record.id}`,
+            },
+          ];
+        })
+      : [],
+  );
 }
 
 /**

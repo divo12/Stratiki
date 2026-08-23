@@ -57,7 +57,35 @@ export type ConnectorIngestResult = {
   warnings: string[];
 };
 
+/**
+ * One record-level fact split out of a raw artifact for fine-grained episode
+ * admission. Content must be a stable serialization of the record alone.
+ */
+export type ConnectorArtifactRecord = {
+  /** Stable serialization of exactly this record. */
+  content: string;
+
+  /** Source-produced timestamp for this record (ISO 8601). */
+  eventTimeIso: string;
+
+  /**
+   * Run-independent identity within the artifact, e.g. `events#evt_123`.
+   * Must exclude run IDs so identical records deduplicate across runs.
+   */
+  sourceRef: string;
+};
+
 export type ConnectorRuntime = ConnectorDefinition & {
+  /**
+   * Splits one parsed raw dump into individual record episodes. When absent
+   * (or when it returns `null`/empty), the whole artifact is admitted as a
+   * single episode.
+   *
+   * @param parsed - Parsed raw artifact content, when it was valid JSON.
+   * @returns Record episodes, or `null` to use whole-artifact admission.
+   */
+  artifactRecords?: (parsed: unknown) => ConnectorArtifactRecord[] | null;
+
   /**
    * Extracts the truest source-produced timestamp from one parsed raw dump so
    * episode admission records real event time instead of ingest time.

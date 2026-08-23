@@ -9,6 +9,7 @@ import {
 import { fetchWithResilience } from "../http.js";
 import { openWikiConnectorsDisplayPath } from "../../config/openwiki-home.js";
 import type {
+  ConnectorArtifactRecord,
   ConnectorDefinition,
   ConnectorIngestOptions,
   ConnectorIngestResult,
@@ -52,8 +53,46 @@ const definition: ConnectorDefinition = {
 export function createMetaAdsConnector(): ConnectorRuntime {
   return {
     ...definition,
+    artifactRecords: readMetaAdsRecordEpisodes,
     ingest,
   };
+}
+
+/**
+ * Splits a parsed raw dump into per-campaign episodes.
+ *
+ * @param parsed - Parsed meta-insights.json content.
+ * @returns One episode per campaign, or `null` when the shape does not match.
+ */
+function readMetaAdsRecordEpisodes(
+  parsed: unknown,
+): ConnectorArtifactRecord[] | null {
+  if (!isRecord(parsed) || !Array.isArray(parsed.rows)) return null;
+  const rows: unknown[] = parsed.rows;
+
+  // Insight rows are windowed aggregates without a source clock; the empty
+  // event time defers to the artifact's fetchedAt stamp.
+  return rows.flatMap((row) => {
+    if (!isRecord(row) || typeof row.campaignId !== "string") return [];
+
+    return [
+      {
+        content: JSON.stringify(row),
+        eventTimeIso: "",
+        sourceRef: `meta-insights.json#${row.campaignId}`,
+      },
+    ];
+  });
+}
+
+/**
+ * Narrows an unknown parsed value to a non-array object.
+ *
+ * @param value - Parsed JSON value.
+ * @returns Whether the value is a string-keyed record.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 async function ingest(

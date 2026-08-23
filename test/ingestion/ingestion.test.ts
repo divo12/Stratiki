@@ -12,8 +12,11 @@ import { createZendeskConnector } from "../../src/connectors/sources/zendesk.ts"
 import {
   createConnectorSynthesisGuidance,
   parseIngestionTarget,
+  planArtifactEpisodes,
   resolveArtifactEventTime,
 } from "../../src/ingestion/ingestion.ts";
+
+const FALLBACK_TIME = "2026-08-23T10:00:00.000Z";
 
 // These cover the pure, dependency-free surface of ingestion.ts. The
 // runOpenWikiIngestion orchestrator loads env, ensures the home dir, and drives
@@ -253,5 +256,124 @@ describe("resolveArtifactEventTime", () => {
         FALLBACK,
       ),
     ).toBe(FALLBACK);
+  });
+});
+
+describe("planArtifactEpisodes", () => {
+  const RUN_PATH =
+    "/home/.openwiki/connectors/stripe/raw/run-1/stripe-events.json";
+
+  test("splits record-level dumps into run-independent episodes", () => {
+    const stripe = createStripeConnector();
+    const content = JSON.stringify({
+      fetchedAt: "2026-08-23T09:00:00Z",
+      events: [
+        { createdAt: "2026-08-20T08:00:00Z", id: "evt_1", type: "a" },
+        { createdAt: "2026-08-21T09:30:00Z", id: "evt_2", type: "b" },
+      ],
+    });
+
+    expect(
+      planArtifactEpisodes(stripe, RUN_PATH, content, FALLBACK_TIME),
+    ).toEqual([
+      {
+        content: JSON.stringify({
+          createdAt: "2026-08-20T08:00:00Z",
+          id: "evt_1",
+          type: "a",
+        }),
+        eventTimeIso: "2026-08-20T08:00:00Z",
+        sourceRef: "stripe-events.json#events#evt_1",
+      },
+      {
+        content: JSON.stringify({
+          createdAt: "2026-08-21T09:30:00Z",
+          id: "evt_2",
+          type: "b",
+        }),
+        eventTimeIso: "2026-08-21T09:30:00Z",
+        sourceRef: "stripe-events.json#events#evt_2",
+      },
+    ]);
+  });
+
+  test("record refs never contain the run directory so reruns deduplicate", () => {
+    const zendesk = createZendeskConnector();
+    const content = JSON.stringify({
+      tickets: [{ id: 7, updatedAt: "2026-08-22T10:00:00Z" }],
+    });
+    const otherRunPath = RUN_PATH.replace("run-1", "run-2");
+
+    const first = planArtifactEpisodes(
+      zendesk,
+      RUN_PATH,
+      content,
+      FALLBACK_TIME,
+    );
+    const second = planArtifactEpisodes(
+      zendesk,
+      otherRunPath,
+      content,
+      FALLBACK_TIME,
+    );
+    expect(second.map((episode) => episode.sourceRef)).toEqual(
+      first.map((episode) => episode.sourceRef),
+    );
+  });
+
+  test("invalid per-record timestamps defer to the artifact clock", () => {
+    const stripe = createStripeConnector();
+    const content = JSON.stringify({
+      fetchedAt: "2026-08-23T09:00:00Z",
+      events: [{ createdAt: "", id: "evt_3" }],
+    });
+
+    expect(
+      planArtifactEpisodes(stripe, RUN_PATH, content, FALLBACK_TIME),
+    ).toEqual([
+      {
+        content: JSON.stringify({ createdAt: "", id: "evt_3" }),
+        eventTimeIso: "2026-08-23T09:00:00Z",
+        sourceRef: "stripe-events.json#events#evt_3",
+      },
+    ]);
+  });
+
+  test("falls back to whole-artifact admission without a selector", () => {
+    const registry = createConnectorRegistry();
+    const sheets = registry["google-sheets"];
+    const content = JSON.stringify({
+      exports: [],
+      fetchedAt: "2026-08-23T08:00:00Z",
+    });
+
+    expect(
+      planArtifactEpisodes(
+        sheets,
+        "/raw/run-9/sheets-rows.json",
+        content,
+        FALLBACK_TIME,
+      ),
+    ).toEqual([
+      {
+        content,
+        eventTimeIso: "2026-08-23T08:00:00Z",
+        sourceRef: "/raw/run-9/sheets-rows.json",
+      },
+    ]);
+  });
+
+  test("malformed JSON degrades to whole-artifact admission with fallback time", () => {
+    const zendesk = createZendeskConnector();
+
+    expect(
+      planArtifactEpisodes(zendesk, RUN_PATH, "{ broken", FALLBACK_TIME),
+    ).toEqual([
+      {
+        content: "{ broken",
+        eventTimeIso: FALLBACK_TIME,
+        sourceRef: RUN_PATH,
+      },
+    ]);
   });
 });

@@ -10,6 +10,7 @@ import {
 import { fetchWithResilience } from "../http.js";
 import { openWikiConnectorsDisplayPath } from "../../config/openwiki-home.js";
 import type {
+  ConnectorArtifactRecord,
   ConnectorDefinition,
   ConnectorIngestOptions,
   ConnectorIngestResult,
@@ -68,8 +69,43 @@ export function createSalesforceConnector(): ConnectorRuntime {
     ...definition,
     artifactEventTime: (parsed) =>
       maxIsoString(readSalesforceModifiedTimes(parsed)),
+    artifactRecords: readSalesforceRecordEpisodes,
     ingest,
   };
+}
+
+/**
+ * Splits a parsed raw dump into per-record episodes across all object types.
+ *
+ * @param parsed - Parsed salesforce-records.json content.
+ * @returns One episode per CRM record, or `null` when the shape does not match.
+ */
+function readSalesforceRecordEpisodes(
+  parsed: unknown,
+): ConnectorArtifactRecord[] | null {
+  if (!isRecord(parsed) || !isRecord(parsed.records)) return null;
+
+  return Object.entries(parsed.records).flatMap(([objectType, records]) =>
+    Array.isArray(records)
+      ? records.flatMap((record) => {
+          if (
+            !isRecord(record) ||
+            typeof record.Id !== "string" ||
+            typeof record.LastModifiedDate !== "string"
+          ) {
+            return [];
+          }
+
+          return [
+            {
+              content: JSON.stringify(record),
+              eventTimeIso: record.LastModifiedDate,
+              sourceRef: `${objectType}#${record.Id}`,
+            },
+          ];
+        })
+      : [],
+  );
 }
 
 /**
