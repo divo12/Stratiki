@@ -1,5 +1,6 @@
 import {
   createRunId,
+  maxIsoString,
   readConnectorConfig,
   readConnectorState,
   updateStateWithRun,
@@ -62,6 +63,19 @@ const definition: ConnectorDefinition = {
 export function createGoogleAdsConnector(): ConnectorRuntime {
   return {
     ...definition,
+    // Performance rows are daily aggregates; the dump's event time is the
+    // latest day present in the results.
+    artifactEventTime: (parsed) => {
+      if (!isRecord(parsed) || !Array.isArray(parsed.rows)) return null;
+
+      return maxIsoString(
+        parsed.rows.flatMap((row) =>
+          isRecord(row) && typeof row.date === "string"
+            ? [`${row.date}T23:59:59Z`]
+            : [],
+        ),
+      );
+    },
     ingest,
   };
 }
@@ -298,4 +312,14 @@ function normalizeLookbackDays(days: number | undefined): number {
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Narrows an unknown parsed value to a non-array object.
+ *
+ * @param value - Parsed JSON value.
+ * @returns Whether the value is a string-keyed record.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

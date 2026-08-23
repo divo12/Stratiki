@@ -175,7 +175,7 @@ async function runSourceIngestion({
 
     emitDeterministicPullSummary(emit, deterministicPull);
     await admitRawEpisodes({
-      connectorId: connector.id,
+      connector,
       emit,
       rawFiles,
       runId: deterministicPull?.runId ?? "",
@@ -538,12 +538,12 @@ function getErrorMessage(error: unknown): string {
  * optimization over raw files that already exist on disk.
  */
 async function admitRawEpisodes({
-  connectorId,
+  connector,
   emit,
   rawFiles,
   runId,
 }: {
-  connectorId: ConnectorId;
+  connector: ConnectorRuntime;
   emit: ((event: OpenWikiRunEvent) => void) | undefined;
   rawFiles: string[];
   runId: string;
@@ -569,16 +569,20 @@ async function admitRawEpisodes({
 
         const result = store.admit({
           bytes: Buffer.byteLength(content, "utf8"),
-          connectorId,
+          connectorId: connector.id,
           content,
-          eventTimeIso: new Date().toISOString(),
+          eventTimeIso: resolveArtifactEventTime(
+            connector,
+            content,
+            new Date().toISOString(),
+          ),
           runId,
           sourceRef: filePath,
         });
         if (result.outcome === "rejected") {
           emitText(
             emit,
-            `Episode rejected for ${connectorId} (${result.decision.rejection.reason}): ${filePath}\n`,
+            `Episode rejected for ${connector.id} (${result.decision.rejection.reason}): ${filePath}\n`,
           );
         }
       }
@@ -591,4 +595,45 @@ async function admitRawEpisodes({
       `Episode store unavailable; continuing without episode tracking: ${getErrorMessage(error)}\n`,
     );
   }
+}
+
+/**
+ * Resolves the truest source-produced timestamp for one raw artifact.
+ *
+ * Resolution order: the connector's declared event-time selector, then the
+ * dump's own `fetchedAt` stamp, then the caller-provided fallback (run time).
+ *
+ * @param connector - Connector runtime that may declare an event-time selector.
+ * @param content - Raw artifact content.
+ * @param fallbackIso - ISO timestamp used when nothing better is available.
+ * @returns Resolved ISO event timestamp.
+ */
+export function resolveArtifactEventTime(
+  connector: Pick<ConnectorRuntime, "artifactEventTime" | "id">,
+  content: string,
+  fallbackIso: string,
+): string {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    parsed = undefined;
+  }
+
+  const declared = connector.artifactEventTime?.(parsed);
+  if (declared !== null && declared !== undefined) {
+    return declared;
+  }
+
+  if (
+    typeof parsed === "object" &&
+    parsed !== null &&
+    "fetchedAt" in parsed &&
+    typeof parsed.fetchedAt === "string" &&
+    Number.isFinite(Date.parse(parsed.fetchedAt))
+  ) {
+    return parsed.fetchedAt;
+  }
+
+  return fallbackIso;
 }

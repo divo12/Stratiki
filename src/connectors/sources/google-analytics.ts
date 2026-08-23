@@ -51,6 +51,14 @@ const definition: ConnectorDefinition = {
 export function createGoogleAnalyticsConnector(): ConnectorRuntime {
   return {
     ...definition,
+    // GA4 rows are daily aggregates; the dump's event time is the end of the
+    // requested reporting window.
+    artifactEventTime: (parsed) => {
+      if (!isRecord(parsed) || !isRecord(parsed.dateRange)) return null;
+      if (typeof parsed.dateRange.endDate !== "string") return null;
+
+      return `${parsed.dateRange.endDate}T23:59:59Z`;
+    },
     ingest,
   };
 }
@@ -266,4 +274,14 @@ function isoDaysAgo(days: number): string {
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Narrows an unknown parsed value to a non-array object.
+ *
+ * @param value - Parsed JSON value.
+ * @returns Whether the value is a string-keyed record.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

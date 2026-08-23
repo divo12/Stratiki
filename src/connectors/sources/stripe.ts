@@ -1,5 +1,6 @@
 import {
   createRunId,
+  maxIsoString,
   readConnectorConfig,
   readConnectorState,
   updateStateWithRun,
@@ -48,8 +49,25 @@ const definition: ConnectorDefinition = {
 export function createStripeConnector(): ConnectorRuntime {
   return {
     ...definition,
+    artifactEventTime: (parsed) => maxIsoString(readStripeEventTimes(parsed)),
     ingest,
   };
+}
+
+/**
+ * Reads every event's source creation time from a parsed raw dump.
+ *
+ * @param parsed - Parsed stripe-events.json content.
+ * @returns Event creation timestamps, when the dump shape matches.
+ */
+function readStripeEventTimes(parsed: unknown): (string | undefined)[] {
+  if (!isRecord(parsed) || !Array.isArray(parsed.events)) return [];
+
+  return parsed.events.flatMap((event) =>
+    isRecord(event) && typeof event.createdAt === "string"
+      ? [event.createdAt]
+      : [],
+  );
 }
 
 async function ingest(
@@ -323,4 +341,14 @@ function normalizeMaxEvents(maxEvents: number | undefined): number {
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Narrows an unknown parsed value to a non-array object.
+ *
+ * @param value - Parsed JSON value.
+ * @returns Whether the value is a string-keyed record.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

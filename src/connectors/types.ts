@@ -58,6 +58,14 @@ export type ConnectorIngestResult = {
 };
 
 export type ConnectorRuntime = ConnectorDefinition & {
+  /**
+   * Extracts the truest source-produced timestamp from one parsed raw dump so
+   * episode admission records real event time instead of ingest time.
+   *
+   * @param parsed - Parsed raw artifact content, when it was valid JSON.
+   * @returns ISO event timestamp, or `null` when this dump carries none.
+   */
+  artifactEventTime?: (parsed: unknown) => string | null;
   ingest: (options?: ConnectorIngestOptions) => Promise<ConnectorIngestResult>;
 };
 

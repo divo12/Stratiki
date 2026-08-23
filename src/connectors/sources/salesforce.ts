@@ -1,5 +1,6 @@
 import {
   createRunId,
+  maxIsoString,
   readConnectorConfig,
   readConnectorState,
   updateStateWithRun,
@@ -65,8 +66,30 @@ const definition: ConnectorDefinition = {
 export function createSalesforceConnector(): ConnectorRuntime {
   return {
     ...definition,
+    artifactEventTime: (parsed) =>
+      maxIsoString(readSalesforceModifiedTimes(parsed)),
     ingest,
   };
+}
+
+/**
+ * Reads every record's source modification time from a parsed raw dump.
+ *
+ * @param parsed - Parsed salesforce-records.json content.
+ * @returns Record modification timestamps, when the dump shape matches.
+ */
+function readSalesforceModifiedTimes(parsed: unknown): (string | undefined)[] {
+  if (!isRecord(parsed) || !isRecord(parsed.records)) return [];
+
+  return Object.values(parsed.records).flatMap((objectRecords) =>
+    Array.isArray(objectRecords)
+      ? objectRecords.flatMap((record) =>
+          isRecord(record) && typeof record.LastModifiedDate === "string"
+            ? [record.LastModifiedDate]
+            : [],
+        )
+      : [],
+  );
 }
 
 async function ingest(
@@ -307,4 +330,14 @@ function parseCursorIso(cursor: string | undefined): string | null {
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Narrows an unknown parsed value to a non-array object.
+ *
+ * @param value - Parsed JSON value.
+ * @returns Whether the value is a string-keyed record.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

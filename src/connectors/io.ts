@@ -108,3 +108,23 @@ function isFileNotFoundError(error: unknown): boolean {
     (error as NodeJS.ErrnoException).code === "ENOENT"
   );
 }
+
+/**
+ * Returns the lexicographically greatest ISO timestamp among the provided
+ * values, ignoring absent entries.
+ *
+ * @param values - Candidate ISO timestamps.
+ * @returns Greatest ISO timestamp, or `null` when none is usable.
+ */
+export function maxIsoString(
+  values: readonly (string | undefined | null)[],
+): string | null {
+  let max: string | null = null;
+  for (const value of values) {
+    if (value === undefined || value === null) continue;
+    if (!Number.isFinite(Date.parse(value))) continue;
+    if (max === null || value > max) max = value;
+  }
+
+  return max;
+}

@@ -3,9 +3,16 @@ import {
   CONNECTOR_IDS,
   createConnectorRegistry,
 } from "../../src/connectors/registry.ts";
+import { createGoogleAdsConnector } from "../../src/connectors/sources/google-ads.ts";
+import { createGoogleAnalyticsConnector } from "../../src/connectors/sources/google-analytics.ts";
+import { createHubSpotConnector } from "../../src/connectors/sources/hubspot.ts";
+import { createSalesforceConnector } from "../../src/connectors/sources/salesforce.ts";
+import { createStripeConnector } from "../../src/connectors/sources/stripe.ts";
+import { createZendeskConnector } from "../../src/connectors/sources/zendesk.ts";
 import {
   createConnectorSynthesisGuidance,
   parseIngestionTarget,
+  resolveArtifactEventTime,
 } from "../../src/ingestion/ingestion.ts";
 
 // These cover the pure, dependency-free surface of ingestion.ts. The
@@ -123,5 +130,128 @@ describe("createConnectorSynthesisGuidance per connector", () => {
         expect(guidance).not.toContain(markers[otherId]);
       }
     }
+  });
+});
+
+describe("resolveArtifactEventTime", () => {
+  const FALLBACK = "2026-08-23T10:00:00.000Z";
+
+  test("prefers the connector selector's newest source timestamp", () => {
+    const zendesk = createZendeskConnector();
+    const content = JSON.stringify({
+      fetchedAt: "2026-08-23T09:00:00Z",
+      tickets: [
+        { id: 1, updatedAt: "2026-08-20T08:00:00Z" },
+        { id: 2, updatedAt: "2026-08-21T09:30:00Z" },
+      ],
+    });
+
+    expect(resolveArtifactEventTime(zendesk, content, FALLBACK)).toBe(
+      "2026-08-21T09:30:00Z",
+    );
+  });
+
+  test("reads stripe event creations and salesforce modification stamps", () => {
+    const stripe = createStripeConnector();
+    expect(
+      resolveArtifactEventTime(
+        stripe,
+        JSON.stringify({
+          events: [
+            { createdAt: "2023-11-14T22:13:20.000Z" },
+            { createdAt: "2023-11-15T01:00:00.000Z" },
+          ],
+        }),
+        FALLBACK,
+      ),
+    ).toBe("2023-11-15T01:00:00.000Z");
+
+    const salesforce = createSalesforceConnector();
+    expect(
+      resolveArtifactEventTime(
+        salesforce,
+        JSON.stringify({
+          records: {
+            Account: [{ LastModifiedDate: "2026-08-21T12:00:00Z" }],
+            Case: [],
+          },
+        }),
+        FALLBACK,
+      ),
+    ).toBe("2026-08-21T12:00:00Z");
+  });
+
+  test("reads hubspot property stamps and daily aggregate windows", () => {
+    const hubspot = createHubSpotConnector();
+    expect(
+      resolveArtifactEventTime(
+        hubspot,
+        JSON.stringify({
+          objects: {
+            deals: [
+              { properties: { hs_lastmodifieddate: "2026-08-19T10:00:00Z" } },
+            ],
+          },
+        }),
+        FALLBACK,
+      ),
+    ).toBe("2026-08-19T10:00:00Z");
+
+    const analytics = createGoogleAnalyticsConnector();
+    expect(
+      resolveArtifactEventTime(
+        analytics,
+        JSON.stringify({
+          dateRange: { startDate: "a", endDate: "2026-08-22" },
+        }),
+        FALLBACK,
+      ),
+    ).toBe("2026-08-22T23:59:59Z");
+
+    const googleAds = createGoogleAdsConnector();
+    expect(
+      resolveArtifactEventTime(
+        googleAds,
+        JSON.stringify({
+          rows: [{ date: "2026-08-20" }, { date: "2026-08-21" }],
+        }),
+        FALLBACK,
+      ),
+    ).toBe("2026-08-21T23:59:59Z");
+  });
+
+  test("falls back to fetchedAt, then the run-time fallback", () => {
+    // A connector without a selector still benefits from its own fetch stamp.
+    const registry = createConnectorRegistry();
+    expect(
+      resolveArtifactEventTime(
+        registry["google-sheets"],
+        JSON.stringify({ fetchedAt: "2026-08-23T08:15:00Z" }),
+        FALLBACK,
+      ),
+    ).toBe("2026-08-23T08:15:00Z");
+
+    // Malformed JSON and missing stamps degrade to the fallback.
+    expect(
+      resolveArtifactEventTime(registry["google-sheets"], "{ broken", FALLBACK),
+    ).toBe(FALLBACK);
+    expect(
+      resolveArtifactEventTime(
+        registry["google-sheets"],
+        JSON.stringify({ rows: [] }),
+        FALLBACK,
+      ),
+    ).toBe(FALLBACK);
+  });
+
+  test("ignores malformed selector output instead of poisoning event time", () => {
+    const stripe = createStripeConnector();
+    expect(
+      resolveArtifactEventTime(
+        stripe,
+        JSON.stringify({ events: [{ createdAt: "not-a-date" }] }),
+        FALLBACK,
+      ),
+    ).toBe(FALLBACK);
   });
 });

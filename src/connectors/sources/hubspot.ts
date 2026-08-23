@@ -1,5 +1,6 @@
 import {
   createRunId,
+  maxIsoString,
   readConnectorConfig,
   readConnectorState,
   updateStateWithRun,
@@ -71,8 +72,41 @@ const definition: ConnectorDefinition = {
 export function createHubSpotConnector(): ConnectorRuntime {
   return {
     ...definition,
+    artifactEventTime: (parsed) =>
+      maxIsoString(readHubSpotModifiedTimes(parsed)),
     ingest,
   };
+}
+
+/**
+ * Reads every record's `hs_lastmodifieddate` from a parsed raw dump.
+ *
+ * @param parsed - Parsed hubspot-records.json content.
+ * @returns Record modification timestamps, when the dump shape matches.
+ */
+function readHubSpotModifiedTimes(parsed: unknown): (string | undefined)[] {
+  if (!isRecord(parsed) || !isRecord(parsed.objects)) return [];
+
+  return Object.values(parsed.objects).flatMap((objectRecords) =>
+    Array.isArray(objectRecords)
+      ? objectRecords.flatMap((record) => {
+          if (!isRecord(record) || !isRecord(record.properties)) return [];
+          const modified = record.properties.hs_lastmodifieddate;
+
+          return typeof modified === "string" ? [modified] : [];
+        })
+      : [],
+  );
+}
+
+/**
+ * Narrows an unknown parsed value to a non-array object.
+ *
+ * @param value - Parsed JSON value.
+ * @returns Whether the value is a string-keyed record.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 async function ingest(

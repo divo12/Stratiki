@@ -1,5 +1,6 @@
 import {
   createRunId,
+  maxIsoString,
   readConnectorConfig,
   readConnectorState,
   updateStateWithRun,
@@ -62,8 +63,25 @@ const definition: ConnectorDefinition = {
 export function createZendeskConnector(): ConnectorRuntime {
   return {
     ...definition,
+    artifactEventTime: (parsed) => maxIsoString(readZendeskTicketTimes(parsed)),
     ingest,
   };
+}
+
+/**
+ * Reads every ticket's source update time from a parsed raw dump.
+ *
+ * @param parsed - Parsed zendesk-tickets.json content.
+ * @returns Ticket update timestamps, when the dump shape matches.
+ */
+function readZendeskTicketTimes(parsed: unknown): (string | undefined)[] {
+  if (!isRecord(parsed) || !Array.isArray(parsed.tickets)) return [];
+
+  return parsed.tickets.flatMap((ticket) =>
+    isRecord(ticket) && typeof ticket.updatedAt === "string"
+      ? [ticket.updatedAt]
+      : [],
+  );
 }
 
 async function ingest(
@@ -316,4 +334,14 @@ function parseCursorSeconds(cursor: string | undefined): number | null {
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Narrows an unknown parsed value to a non-array object.
+ *
+ * @param value - Parsed JSON value.
+ * @returns Whether the value is a string-keyed record.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
