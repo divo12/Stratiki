@@ -57,3 +57,31 @@ describe("isStale", () => {
     expect(isStale("garbage", now)).toBe(true);
   });
 });
+
+describe("ISO timestamp strictness", () => {
+  test("locale-format garbage is rejected, not treated as a future threshold", () => {
+    expect(computeStaleAfter("daily", "12/31/9999")).toBeNull();
+    // Locale dates parse to the past, which would silently read as stale;
+    // rejecting them keeps unknown freshness visible.
+    expect(isStale("12/31/9999", new Date("2026-08-22T12:00:00.000Z"))).toBe(
+      true,
+    );
+  });
+
+  test("offset-bearing ISO timestamps remain accepted", () => {
+    // 15:00+02:00 == 13:00Z — still ahead of `now`, so fresh.
+    expect(
+      isStale(
+        "2026-08-22T15:00:00+02:00",
+        new Date("2026-08-22T12:00:00.000Z"),
+      ),
+    ).toBe(false);
+    // 09:00-02:00 == 11:00Z — already behind `now`, so stale.
+    expect(
+      isStale(
+        "2026-08-22T09:00:00-02:00",
+        new Date("2026-08-22T12:00:00.000Z"),
+      ),
+    ).toBe(true);
+  });
+});

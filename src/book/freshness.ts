@@ -19,14 +19,35 @@ export function computeStaleAfter(
   tier: FreshnessTier,
   pulledAtIso: string,
 ): string | null {
-  const pulledMs = Date.parse(pulledAtIso);
-  if (Number.isNaN(pulledMs)) {
+  const pulledMs = parseIsoTimestamp(pulledAtIso);
+  if (pulledMs === null) {
     return null;
   }
 
   return new Date(
     pulledMs + tierMaxAgeHours(tier) * 60 * 60 * 1000,
   ).toISOString();
+}
+
+/**
+ * Accepts only offset-bearing ISO-8601 timestamps. `Date.parse` alone also
+ * accepts locale formats such as `12/31/9999`, which would let garbage
+ * masquerade as a valid future freshness threshold.
+ *
+ * @returns Epoch milliseconds, or `null` for any non-ISO input.
+ */
+function parseIsoTimestamp(value: string): number | null {
+  if (
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})$/u.test(
+      value,
+    )
+  ) {
+    return null;
+  }
+
+  const parsedMs = Date.parse(value);
+
+  return Number.isNaN(parsedMs) ? null : parsedMs;
 }
 
 /**
@@ -42,8 +63,8 @@ export function isStale(
     return true;
   }
 
-  const thresholdMs = Date.parse(staleAfterIso);
-  if (Number.isNaN(thresholdMs)) {
+  const thresholdMs = parseIsoTimestamp(staleAfterIso);
+  if (thresholdMs === null) {
     return true;
   }
 

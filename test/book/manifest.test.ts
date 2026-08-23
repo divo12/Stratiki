@@ -163,3 +163,20 @@ describe("WorkspaceManifest.save", () => {
     expect(onDisk.sourceTiers).toEqual([]);
   });
 });
+
+describe("book init name bound", () => {
+  test("parser rejects names longer than the manifest limit", async () => {
+    const { parseCommand } = await import("../../src/cli/commands.js");
+    const command = parseCommand(["book", "init", "--name", "x".repeat(121)]);
+    expect(command.kind).toBe("error");
+    if (command.kind === "error") {
+      expect(command.message).toContain("120 characters or fewer");
+    }
+  });
+
+  test("parser accepts a 120-character name", async () => {
+    const { parseCommand } = await import("../../src/cli/commands.js");
+    const command = parseCommand(["book", "init", "--name", "x".repeat(120)]);
+    expect(command.kind).toBe("book");
+  });
+});

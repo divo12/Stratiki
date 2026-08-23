@@ -750,12 +750,22 @@ function parseBookCommand(argv: string[]): CliCommand {
           message: "--name may only be specified once.",
         };
       }
-      const value = arg === "--name" ? argv[index + 1] : arg.slice("--name=".length);
+      const value =
+        arg === "--name" ? argv[index + 1] : arg.slice("--name=".length);
       if (!value || value.startsWith("-")) {
         return {
           kind: "error",
           exitCode: 1,
           message: "--name requires a workspace name.",
+        };
+      }
+      // Mirror WorkspaceManifest's own bound so failures surface at parse
+      // time instead of after the manifest file has been written.
+      if (value.length > 120) {
+        return {
+          kind: "error",
+          exitCode: 1,
+          message: "--name must be 120 characters or fewer.",
         };
       }
       name = value;
