@@ -30,6 +30,14 @@ CREATE TABLE IF NOT EXISTS episodes (
   UNIQUE (connector_id, source_ref, content_hash)
 );
 CREATE INDEX IF NOT EXISTS idx_episodes_connector ON episodes (connector_id, ingest_time);
+CREATE TABLE IF NOT EXISTS datasets (
+  dataset_id TEXT PRIMARY KEY,
+  partition_root TEXT NOT NULL,
+  schema_version INTEGER NOT NULL,
+  sample_record TEXT NOT NULL,
+  first_seen_at TEXT NOT NULL,
+  last_seen_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS meta (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
@@ -66,6 +74,48 @@ export interface EpisodeRecord {
   readonly ingestTimeIso: string;
   readonly runId: string;
   readonly sourceRef: string;
+}
+
+/**
+ * One registered lake dataset: a connector's artifact stream with its schema
+ * identity and partition root, so rebuild tooling and query surfaces can
+ * discover data without reading connector source code.
+ */
+export interface DatasetCatalogEntry {
+  readonly datasetId: string;
+  readonly firstSeenAt: string;
+  readonly lastSeenAt: string;
+  readonly partitionRoot: string;
+  readonly sampleRecord: string;
+  readonly schemaVersion: number;
+}
+
+/**
+ * Observation input that upserts one dataset row on admission.
+ */
+export interface DatasetObservation {
+  readonly datasetId: string;
+
+  /** Home-relative raw root the dataset's partitions live under. */
+  readonly partitionRoot: string;
+
+  /** Latest sample of the record shape, truncated by the caller. */
+  readonly sampleRecord: string;
+
+  /** Schema version of the selector that produced the records. */
+  readonly schemaVersion: number;
+
+  /** ISO timestamp of this observation. */
+  readonly observedAtIso: string;
+}
+
+interface DatasetRow {
+  dataset_id: string;
+  first_seen_at: string;
+  last_seen_at: string;
+  partition_root: string;
+  sample_record: string;
+  schema_version: number | bigint;
 }
 
 interface EpisodeRow {
@@ -141,6 +191,50 @@ export class EpisodeStore {
     };
 
     return Number(row.n);
+  }
+
+  /**
+   * Upserts one dataset observation. The first observation freezes
+   * `first_seen_at`; later observations refresh the sample, schema version,
+   * and last-seen stamp.
+   */
+  observeDataset(observation: DatasetObservation): void {
+    this.db
+      .prepare(
+        `INSERT INTO datasets (dataset_id, partition_root, schema_version, sample_record, first_seen_at, last_seen_at)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(dataset_id) DO UPDATE SET
+           partition_root = excluded.partition_root,
+           schema_version = excluded.schema_version,
+           sample_record = excluded.sample_record,
+           last_seen_at = excluded.last_seen_at`,
+      )
+      .run(
+        observation.datasetId,
+        observation.partitionRoot,
+        observation.schemaVersion,
+        observation.sampleRecord,
+        observation.observedAtIso,
+        observation.observedAtIso,
+      );
+  }
+
+  /**
+   * Lists every registered dataset in stable id order.
+   */
+  listDatasets(): DatasetCatalogEntry[] {
+    const rows = this.db
+      .prepare("SELECT * FROM datasets ORDER BY dataset_id")
+      .all() as unknown as DatasetRow[];
+
+    return rows.map((row) => ({
+      datasetId: row.dataset_id,
+      firstSeenAt: row.first_seen_at,
+      lastSeenAt: row.last_seen_at,
+      partitionRoot: row.partition_root,
+      sampleRecord: row.sample_record,
+      schemaVersion: Number(row.schema_version),
+    }));
   }
 
   /**

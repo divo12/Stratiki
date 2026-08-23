@@ -18,11 +18,16 @@ import {
   ensureOpenWikiHome,
   getConnectorConfigPath,
   openWikiBookDbPath,
+  openWikiHomeDir,
   openWikiHomeDisplayPath,
   openWikiLocalWikiDir,
   openWikiLocalWikiDisplayPath,
 } from "../config/openwiki-home.js";
 import { EpisodeStore } from "../book/episode-store.js";
+import {
+  readLakeRetentionPolicy,
+  pruneLakeRawPartitions,
+} from "../connectors/retention.js";
 import { readFile } from "node:fs/promises";
 import { createOpenWikiThreadId, runOpenWikiAgent } from "../agent/index.js";
 import type {
@@ -103,7 +108,36 @@ export async function runOpenWikiIngestion(
     );
   }
 
+  await pruneExpiredRawPartitions(options.onEvent);
+
   return { results };
+}
+
+/**
+ * Runs one best-effort lake retention pass. Deletion only ever touches
+ * date-partitioned raw directories; episodes and claims are never removed.
+ * Failures are surfaced as events and never fail the ingestion run.
+ *
+ * @param emit - Run event sink for prune summaries.
+ */
+async function pruneExpiredRawPartitions(
+  emit: ((event: OpenWikiRunEvent) => void) | undefined,
+): Promise<void> {
+  try {
+    const policy = readLakeRetentionPolicy(openWikiHomeDir);
+    const pruned = await pruneLakeRawPartitions(policy, new Date());
+
+    for (const { connectorId, removed } of pruned) {
+      emitText(
+        emit,
+        `Retention: removed ${removed.length} expired partition${
+          removed.length === 1 ? "" : "s"
+        } from ${connectorId} (${removed.join(", ")}).\n`,
+      );
+    }
+  } catch (error) {
+    emitText(emit, `Retention pass skipped: ${getErrorMessage(error)}\n`);
+  }
 }
 
 export function parseIngestionTarget(value: string): IngestionTarget | null {
@@ -569,12 +603,24 @@ async function admitRawEpisodes({
         }
 
         const nowIso = new Date().toISOString();
-        for (const episode of planArtifactEpisodes(
+        const episodes = planArtifactEpisodes(
           connector,
           filePath,
           content,
           nowIso,
-        )) {
+        );
+
+        if (episodes.length > 0) {
+          store.observeDataset({
+            datasetId: buildDatasetId(connector.id, filePath),
+            observedAtIso: nowIso,
+            partitionRoot: `connectors/${connector.id}/raw`,
+            sampleRecord: episodes[0]?.content.slice(0, 500) ?? "",
+            schemaVersion: DATASET_SCHEMA_VERSION,
+          });
+        }
+
+        for (const episode of episodes) {
           const result = store.admit({
             bytes: Buffer.byteLength(episode.content, "utf8"),
             connectorId: connector.id,
@@ -600,6 +646,25 @@ async function admitRawEpisodes({
       `Episode store unavailable; continuing without episode tracking: ${getErrorMessage(error)}\n`,
     );
   }
+}
+
+/**
+ * Schema version stamped on catalog observations. Bump when a connector's
+ * record selector changes its output shape so readers can route episodes.
+ */
+const DATASET_SCHEMA_VERSION = 1;
+
+/**
+ * Builds the catalog dataset id for one raw artifact.
+ *
+ * @param connectorId - Owning connector.
+ * @param filePath - Raw artifact path.
+ * @returns Dataset id of the form `<connector>/<artifact-stem>`.
+ */
+function buildDatasetId(connectorId: string, filePath: string): string {
+  const basename = path.basename(filePath).replace(/\.json$/u, "");
+
+  return `${connectorId}/${basename}`;
 }
 
 /**
