@@ -20,6 +20,7 @@ import { resolveStartupCommand } from "./startup.js";
 import { App } from "./app/app.js";
 import {
   runAuthCommand,
+  runBookCommand,
   runCronCommand,
   runIngestCommand,
   runNgrokCommand,
@@ -88,6 +89,8 @@ async function runStandardCommand(
     await runNgrokCommand(command);
   } else if (command.kind === "cron") {
     await runCronCommand(command);
+  } else if (command.kind === "book") {
+    await runBookCommand(command);
   } else if (command.kind === "ingest") {
     await runIngestCommand(command);
   } else if (command.kind === "visualize") {

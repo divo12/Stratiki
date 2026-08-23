@@ -142,6 +142,13 @@ export type CliCommand =
       exitCode: 0;
       target: CronTarget | null;
     }
+  | {
+      kind: "book";
+      action: "init";
+      exitCode: 0;
+      force: boolean;
+      name: string | null;
+    }
   | { kind: "help"; exitCode: 0 }
   | {
       kind: "run";
@@ -177,6 +184,10 @@ export function parseCommand(argv: string[]): CliCommand {
 
   if (argv[0] === "mcp") {
     return parseMcpCommand(argv.slice(1));
+  }
+
+  if (argv[0] === "book") {
+    return parseBookCommand(argv.slice(1));
   }
 
   if (argv[0] === "auth") {
@@ -706,6 +717,76 @@ function parseMcpCommand(argv: string[]): CliCommand {
 }
 
 /**
+ * Parses `stratiki book init [--name <name>] [--force]`, the entrypoint that
+ * seeds a workspace's System Book manifest.
+ */
+function parseBookCommand(argv: string[]): CliCommand {
+  if (argv[0] !== "init") {
+    return {
+      kind: "error",
+      exitCode: 1,
+      message:
+        argv[0] === undefined
+          ? "The book command requires an action. Supported actions: init."
+          : `Unknown book action: ${argv[0]}. Supported actions: init.`,
+    };
+  }
+
+  let force = false;
+  let name: string | null = null;
+  let sawName = false;
+
+  for (let index = 1; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === "--force") {
+      force = true;
+      continue;
+    }
+    if (arg === "--name" || arg.startsWith("--name=")) {
+      if (sawName) {
+        return {
+          kind: "error",
+          exitCode: 1,
+          message: "--name may only be specified once.",
+        };
+      }
+      const value =
+        arg === "--name" ? argv[index + 1] : arg.slice("--name=".length);
+      if (!value || value.startsWith("-")) {
+        return {
+          kind: "error",
+          exitCode: 1,
+          message: "--name requires a workspace name.",
+        };
+      }
+      // Mirror WorkspaceManifest's own bound so failures surface at parse
+      // time instead of after the manifest file has been written.
+      if (value.length > 120) {
+        return {
+          kind: "error",
+          exitCode: 1,
+          message: "--name must be 120 characters or fewer.",
+        };
+      }
+      name = value;
+      sawName = true;
+      if (arg === "--name") index += 1;
+      continue;
+    }
+
+    return {
+      kind: "error",
+      exitCode: 1,
+      message: arg.startsWith("-")
+        ? `Unknown option for book init: ${arg}`
+        : `Unexpected argument for book init: ${arg}`,
+    };
+  }
+
+  return { action: "init", exitCode: 0, force, kind: "book", name };
+}
+
+/**
  * Builds the registry-derived integration usage error.
  *
  * @returns CLI error containing every currently supported host target.
@@ -1094,6 +1175,7 @@ export const helpContent: HelpContent = {
     "stratiki auth configure <provider> [--force]",
     "stratiki auth tools <provider>",
     "stratiki ingest <source|source-instance|all> [--scheduled] [--print] [--modelId <id>]",
+    "stratiki book init [--name <name>] [--force]",
     "stratiki cron list",
     "stratiki cron pause all",
     "stratiki cron resume all",
@@ -1137,6 +1219,11 @@ export const helpContent: HelpContent = {
       label: "stratiki ingest <source|source-instance|all>",
       description:
         "Run ingestion and wiki update runs for one connector, one source instance, or all configured sources.",
+    },
+    {
+      label: "stratiki book init [--name <name>] [--force]",
+      description:
+        "Seed the workspace System Book manifest (openwiki/book.config.json) with the U1-U7 coverage ontology.",
     },
     {
       label: "stratiki cron list",
