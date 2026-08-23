@@ -242,3 +242,56 @@ function jsonResponse(value: unknown): Response {
     status: 200,
   });
 }
+
+describe("hubspot connector delta sync", () => {
+  test("bootstraps a window, then resumes from the stored high-water mark", async () => {
+    process.env.HUBSPOT_TOKEN = "pat-eu1-test";
+    const home = await createTempHome();
+    const recent = new Date(Date.now() - 60 * 1000).toISOString();
+    const requests: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: string | URL | Request, init?: RequestInit) => {
+        const url = new URL(
+          input instanceof Request ? input.url : String(input),
+        );
+        requests.push(typeof init?.body === "string" ? init.body : "");
+        if (url.pathname.endsWith("/deals/search")) {
+          return Promise.resolve(
+            searchResponse([
+              {
+                id: "502",
+                properties: {
+                  dealname: "Acme expansion",
+                  hs_lastmodifieddate: recent,
+                },
+              },
+            ]),
+          );
+        }
+        return Promise.resolve(searchResponse([]));
+      }),
+    );
+    const connector = await loadHubSpotConnector(home);
+
+    // First run bootstraps from the connector default window.
+    const bootstrap = await connector.ingest();
+    expect(bootstrap.status).toBe("success");
+
+    const state = JSON.parse(
+      await readFile(
+        path.join(home, ".openwiki/connectors/hubspot/state.json"),
+        "utf8",
+      ),
+    ) as { latestIds: Record<string, string> };
+    expect(state.latestIds.records).toBe(recent);
+
+    // Second run resumes exactly from the stored high-water mark: every
+    // request filters on hs_lastmodifieddate >= the stored cursor (ms epoch).
+    requests.length = 0;
+    await connector.ingest();
+    expect(
+      requests.every((body) => body.includes(String(Date.parse(recent)))),
+    ).toBe(true);
+  });
+});

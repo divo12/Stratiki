@@ -194,11 +194,11 @@ describe("runOpenWikiIngestion", () => {
     expect(result.results[0]?.status).toBe("agent-updated");
     expect(result.results[0]?.rawFiles).toEqual(pull.rawFiles);
 
-    // The connector pull ran with the ingestion window and instance id.
+    // The connector pull runs without a forced window so stored cursors drive
+    // incremental deltas; the instance id still identifies the source.
     expect(connector.ingest).toHaveBeenCalledWith({
       connectorConfig: undefined,
       instanceId: "git-repo",
-      windowHours: 24,
     });
 
     // The agent ran once against the local wiki dir with the composed message.

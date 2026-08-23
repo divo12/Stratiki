@@ -154,7 +154,13 @@ async function ingest(
 
   const limit = normalizeLimit(options.limit, config.maxRecordsPerObject);
   const windowHours = normalizeWindowHours(options.windowHours) ?? 24;
-  const sinceMs = Date.now() - windowHours * 60 * 60 * 1000;
+  // A prior run's high-water mark resumes the stream; an explicit windowHours
+  // override re-opens a bounded window instead.
+  const priorCursor =
+    options.windowHours === undefined
+      ? parseCursorMs(state.latestIds?.records)
+      : null;
+  const sinceMs = priorCursor ?? Date.now() - windowHours * 60 * 60 * 1000;
 
   const objectTypes = (["deals", "companies", "contacts"] as const).filter(
     (objectType) => {
@@ -200,6 +206,21 @@ async function ingest(
     0,
   );
 
+  // Persist the newest hs_lastmodifieddate actually returned so the next run
+  // resumes forward; when nothing newer exists, the prior cursor is retained.
+  const newestModified = Object.values(objects)
+    .flat()
+    .map((record) => record?.properties.hs_lastmodifieddate)
+    .filter((value): value is string => typeof value === "string")
+    .sort()
+    .at(-1);
+  const newestModifiedMs =
+    newestModified !== undefined ? Date.parse(newestModified) : Number.NaN;
+  const nextCursorMs =
+    Number.isFinite(newestModifiedMs) && newestModifiedMs > sinceMs
+      ? newestModifiedMs
+      : undefined;
+
   return await finishHubSpotRun({
     message: `Fetched ${recordCount} HubSpot record${
       recordCount === 1 ? "" : "s"
@@ -211,6 +232,10 @@ async function ingest(
     state,
     status: "success",
     warnings,
+    latestIds:
+      nextCursorMs === undefined
+        ? undefined
+        : { records: new Date(nextCursorMs).toISOString() },
   });
 }
 
@@ -221,6 +246,7 @@ async function finishHubSpotRun({
   state,
   status,
   warnings,
+  latestIds,
 }: {
   message: string;
   rawFiles: string[];
@@ -228,16 +254,21 @@ async function finishHubSpotRun({
   state: Awaited<ReturnType<typeof readConnectorState>>;
   status: ConnectorIngestResult["status"];
   warnings: string[];
+  latestIds?: Record<string, string>;
 }): Promise<ConnectorIngestResult> {
   await writeConnectorState(
     "hubspot",
-    updateStateWithRun(state, {
-      at: new Date().toISOString(),
-      rawFiles,
-      runId,
-      status,
-      warnings,
-    }),
+    updateStateWithRun(
+      state,
+      {
+        at: new Date().toISOString(),
+        rawFiles,
+        runId,
+        status,
+        warnings,
+      },
+      latestIds,
+    ),
   );
 
   return {
@@ -338,6 +369,19 @@ function normalizeWindowHours(windowHours: number | undefined): number | null {
   }
 
   return Math.max(1, Math.min(168, Math.trunc(windowHours)));
+}
+
+/**
+ * Reads the stored per-stream high-water mark as epoch milliseconds.
+ *
+ * @param cursor - Stored cursor string, when a prior run recorded one.
+ * @returns Cursor milliseconds, or `null` when absent or malformed.
+ */
+function parseCursorMs(cursor: string | undefined): number | null {
+  if (cursor === undefined || cursor.length === 0) return null;
+  const parsed = Date.parse(cursor);
+
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function getErrorMessage(error: unknown): string {
