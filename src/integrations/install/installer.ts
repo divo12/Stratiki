@@ -29,6 +29,7 @@ import {
   inspectInstallation,
   inventorySkill,
   resolveCanonicalSkillBundle as resolveSkillBundle,
+  removeLegacySkillInstallation,
   sameFiles,
   writeReceipt,
   type SkillReceipt,
@@ -161,6 +162,10 @@ export class HostIntegrationInstaller {
       options.mcpServerCommand ?? defaultMcpServerCommand(target.id);
     assertMcpServerCommand(mcpServerCommand);
     const canonical = await inventorySkill(this.bundleDirectory, false);
+    // Migration: a pre-rename installation (skills/openwiki with a valid
+    // legacy receipt) is ours to replace. Remove it before inspecting so the
+    // normal install path runs; foreign content still requires --force.
+    await removeLegacySkillInstallation(target, context);
     const inspection = await inspectInstallation(
       context.skillDirectory,
       target.id,
@@ -247,6 +252,9 @@ export class HostIntegrationInstaller {
       options.scope,
       options.root,
     );
+    // Migration cleanup: remove a pre-rename skill directory when uninstall
+    // runs; foreign directories are never touched.
+    await removeLegacySkillInstallation(target, context);
     const inspection = await inspectInstallation(
       context.skillDirectory,
       target.id,

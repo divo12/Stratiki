@@ -1,11 +1,12 @@
 import { createHash } from "node:crypto";
-import { lstat, readFile, readdir, writeFile } from "node:fs/promises";
+import { lstat, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { OPENWIKI_VERSION } from "../../version.js";
 import type {
   HostIntegrationStatus,
   HostMcpServerCommand,
+  HostTarget,
   HostTargetId,
 } from "./types.js";
 
@@ -350,4 +351,56 @@ function resolvePortableRoot(relative: string): string | undefined {
  */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Directory name used by pre-rename installations. */
+const LEGACY_SKILL_DIR_NAME = "openwiki";
+/** Receipt filename written by pre-rename installations. */
+const LEGACY_RECEIPT_FILE = ".openwiki-install.json";
+
+/**
+ * Removes a pre-rename managed installation (skills/openwiki with a valid
+ * `.openwiki-install.json` receipt for this host). Foreign directories are
+ * left untouched so the existing force/conflict flow keeps protecting them.
+ *
+ * @param target - Registry entry whose legacy install is claimed.
+ * @param context - Resolved install context carrying the new destination.
+ * @returns Whether a legacy directory was removed.
+ */
+export async function removeLegacySkillInstallation(
+  target: HostTarget,
+  context: { skillDirectory: string },
+): Promise<boolean> {
+  const legacyDir = path.join(
+    path.dirname(context.skillDirectory),
+    LEGACY_SKILL_DIR_NAME,
+  );
+  let receiptRaw: string;
+  try {
+    receiptRaw = await readFile(
+      path.join(legacyDir, LEGACY_RECEIPT_FILE),
+      "utf8",
+    );
+  } catch {
+    return false;
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(receiptRaw);
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "package" in parsed &&
+      "target" in parsed &&
+      (parsed as { package?: unknown }).package === "openwiki" &&
+      (parsed as { target?: unknown }).target === target.id
+    ) {
+      await rm(legacyDir, { recursive: true, force: true });
+      return true;
+    }
+  } catch {
+    // Unreadable or malformed legacy receipt: treat as foreign and keep it.
+  }
+
+  return false;
 }

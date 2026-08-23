@@ -18,6 +18,11 @@ export async function installJsonMcpEntry(
 ): Promise<boolean> {
   const root = (await readJsonObject(filePath)) ?? {};
   const servers = asObject(root.mcpServers, "mcpServers", filePath);
+  // Migration: a pre-rename `openwiki` entry is ours to replace; drop it so
+  // the new install does not leave a dead server behind.
+  if (isLegacyOpenWikiEntry(servers.openwiki)) {
+    delete servers.openwiki;
+  }
   const existing = servers.stratiki;
   if (existing !== undefined) {
     if (matchesEntry(existing, entry)) return false;
@@ -64,6 +69,10 @@ export async function uninstallJsonMcpEntry(
   }
 
   delete servers.stratiki;
+  // Migration cleanup: remove the pre-rename entry if it is still ours.
+  if (isLegacyOpenWikiEntry(servers.openwiki)) {
+    delete servers.openwiki;
+  }
   root.mcpServers = servers;
   await writeTextAtomic(filePath, `${JSON.stringify(root, null, 2)}\n`);
   return true;
@@ -172,4 +181,19 @@ function matchesEntry(value: unknown, expected: HostMcpServerCommand): boolean {
  */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * True when an entry under the pre-rename `openwiki` key is the one this
+ * package installed (command `openwiki`). Such entries are migrated or
+ * cleaned up by install/uninstall; foreign entries under that key are left
+ * untouched.
+ */
+function isLegacyOpenWikiEntry(value: unknown): boolean {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "command" in value &&
+    (value as { command?: unknown }).command === "openwiki"
+  );
 }

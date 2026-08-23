@@ -41,7 +41,7 @@ export interface HostToolProvider {
  */
 export function createOpenWikiMcpServer(provider: HostToolProvider): McpServer {
   const server = new McpServer(
-    { name: "openwiki", version: OPENWIKI_VERSION },
+    { name: "stratiki", version: OPENWIKI_VERSION },
     { instructions: INSTRUCTIONS },
   );
 

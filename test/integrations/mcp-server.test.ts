@@ -224,7 +224,7 @@ describe("OpenWiki MCP adapter", () => {
           Promise.reject(
             new HostIntegrationError(
               "invalid_state",
-              "No matching OpenWiki run is active.",
+              "No matching Stratiki run is active.",
             ),
           ),
       }),
@@ -241,7 +241,7 @@ describe("OpenWiki MCP adapter", () => {
         content: [
           {
             type: "text",
-            text: "invalid_state: No matching OpenWiki run is active.",
+            text: "invalid_state: No matching Stratiki run is active.",
           },
         ],
       });

@@ -563,7 +563,7 @@ export class HostSessionManager {
     if (!this.active || this.active.id !== runId) {
       throw new HostIntegrationError(
         "invalid_state",
-        "No matching OpenWiki run is active.",
+        "No matching Stratiki run is active.",
       );
     }
     return this.active;
@@ -576,7 +576,7 @@ export class HostSessionManager {
     if (this.operationInProgress) {
       throw new HostIntegrationError(
         "invalid_state",
-        "Another OpenWiki lifecycle operation is already in progress.",
+        "Another Stratiki lifecycle operation is already in progress.",
       );
     }
     this.operationInProgress = true;

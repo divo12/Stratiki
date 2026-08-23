@@ -34,7 +34,7 @@ export async function installCodexMcpBlock(
   entry: HostMcpServerCommand,
   replaceableEntry?: HostMcpServerCommand,
 ): Promise<boolean> {
-  const current = await readOptional(filePath);
+  let current = await readOptional(filePath);
   const block = renderBlock(entry);
   const range = markerRange(current);
   if (range) {
@@ -64,6 +64,9 @@ export async function installCodexMcpBlock(
       `An unmanaged stratiki MCP table already exists in ${filePath}.`,
     );
   }
+  // Migration: drop pre-rename managed blocks so the new install does not
+  // leave a second, dead server behind.
+  current = stripLegacyManagedBlocks(current);
 
   const separator =
     current.length === 0 || current.endsWith("\n\n") ? "" : "\n";
@@ -84,7 +87,15 @@ export async function uninstallCodexMcpBlock(
 ): Promise<boolean> {
   const current = await readOptional(filePath);
   const range = markerRange(current);
-  if (!range) return false;
+  if (!range) {
+    // Migration cleanup: a legacy-only config is ours to remove.
+    const cleaned = stripLegacyManagedBlocks(current);
+    if (cleaned !== current) {
+      await writeTextAtomic(filePath, cleaned);
+      return true;
+    }
+    return false;
+  }
   if (
     current.slice(range.start, range.end) !== renderBlock(entry) ||
     hasUnmanagedOpenWikiTable(current, range)
@@ -95,10 +106,8 @@ export async function uninstallCodexMcpBlock(
     );
   }
 
-  await writeTextAtomic(
-    filePath,
-    `${current.slice(0, range.start)}${current.slice(range.end)}`,
-  );
+  const removed = `${current.slice(0, range.start)}${current.slice(range.end)}`;
+  await writeTextAtomic(filePath, stripLegacyManagedBlocks(removed));
   return true;
 }
 
@@ -208,4 +217,56 @@ async function readOptional(filePath: string): Promise<string> {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return "";
     throw error;
   }
+}
+
+const LEGACY_START = "# OPENWIKI:MCP:START";
+const LEGACY_END = "# OPENWIKI:MCP:END";
+
+/**
+ * Removes pre-rename managed blocks: OPENWIKI-marker-delimited ranges and
+ * standalone `[mcp_servers.openwiki]` tables whose body pins
+ * `command = "openwiki"`. Foreign content under those names is left alone.
+ *
+ * @param content - Complete TOML config content.
+ * @returns Content with recognized legacy blocks removed.
+ */
+function stripLegacyManagedBlocks(content: string): string {
+  let result = content.replace(
+    new RegExp(
+      `${escapeRegExp(LEGACY_START)}[\\s\\S]*?${escapeRegExp(LEGACY_END)}\\n?`,
+      "gu",
+    ),
+    "",
+  );
+
+  const tablePattern =
+    /^[ \t]*\[mcp_servers\.openwiki\][ \t]*\n((?:[^\n[]*\n)*?)(?=^[ \t]*\[|\n?$)/gmu;
+  for (const match of [...result.matchAll(tablePattern)].reverse()) {
+    const body = match[1] ?? "";
+    if (/^[ \t]*command[ \t]*=[ \t]*"openwiki"[ \t]*$/mu.test(body)) {
+      result =
+        result.slice(0, match.index) +
+        result.slice((match.index ?? 0) + match[0].length);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Reports whether the config contains a recognizable legacy managed block.
+ *
+ * @param content - Complete TOML config content.
+ * @returns Legacy-block presence.
+ */
+export function hasLegacyManagedBlock(content: string): boolean {
+  if (content.includes(LEGACY_START)) {
+    return true;
+  }
+
+  return stripLegacyManagedBlocks(content) !== content;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }

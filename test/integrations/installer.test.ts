@@ -859,7 +859,7 @@ describe("project integration root resolution", () => {
       installer.install(HOST_TARGETS.codex, projectOptions(directory)),
     ).rejects.toMatchObject({
       code: "invalid_input",
-      message: "The OpenWiki root must be inside a Git repository.",
+      message: "The Stratiki root must be inside a Git repository.",
     });
     await expect(access(path.join(directory, ".agents"))).rejects.toThrow();
   });

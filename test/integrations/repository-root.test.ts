@@ -43,7 +43,7 @@ describe("host repository root resolution", () => {
     await expect(resolveRepositoryRoot(".")).rejects.toMatchObject({
       code: "invalid_input",
       message:
-        "The OpenWiki root must be an absolute path inside a Git repository.",
+        "The Stratiki root must be an absolute path inside a Git repository.",
     });
   });
 
@@ -56,13 +56,13 @@ describe("host repository root resolution", () => {
     await expect(
       resolveRepositoryRoot(path.join(root, "private-missing-name")),
     ).rejects.toMatchObject({
-      message: "The OpenWiki root must be an existing directory.",
+      message: "The Stratiki root must be an existing directory.",
     });
     await expect(resolveRepositoryRoot(file)).rejects.toMatchObject({
-      message: "The OpenWiki root must be a directory.",
+      message: "The Stratiki root must be a directory.",
     });
     await expect(resolveRepositoryRoot(root)).rejects.toMatchObject({
-      message: "The OpenWiki root must be inside a Git repository.",
+      message: "The Stratiki root must be inside a Git repository.",
     });
   });
 
