@@ -63,10 +63,35 @@ export async function writeRawJson(
   value: unknown,
 ): Promise<string> {
   await ensureConnectorHome(connectorId);
-  const filePath = path.join(getConnectorRawDir(connectorId), runId, filename);
+  const filePath = path.join(
+    getRawPartitionDir(connectorId, new Date()),
+    runId,
+    filename,
+  );
   await writePrivateJson(filePath, value);
 
   return filePath;
+}
+
+/**
+ * Resolves today's date-partition directory for one connector's raw zone.
+ *
+ * Runs land under `raw/<id>/dt=YYYY-MM-DD/<run-id>/` so listing, retention,
+ * and cold-storage sync operate on whole days instead of scanning every run
+ * ever recorded.
+ *
+ * @param connectorId - Connector owning the raw zone.
+ * @param date - Partition date.
+ * @returns Absolute partition directory.
+ */
+export function getRawPartitionDir(
+  connectorId: ConnectorId,
+  date: Date,
+): string {
+  return path.join(
+    getConnectorRawDir(connectorId),
+    `dt=${date.toISOString().slice(0, 10)}`,
+  );
 }
 
 export function createRunId(): string {

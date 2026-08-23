@@ -41,6 +41,38 @@ describe("raw connector tools", () => {
     expect(result.files.every((file) => !file.includes("\\"))).toBe(true);
   });
 
+  test("treats date-partitioned run directories as the latest run", async () => {
+    const home = await createTempHome();
+    await writeRawFile(home, "x", "2026-07-19T000000Z/legacy.json", "{}");
+    await writeRawFile(
+      home,
+      "x",
+      "dt=2026-08-22/2026-08-22T100000Z/older-day.json",
+      "{}",
+    );
+    await writeRawFile(
+      home,
+      "x",
+      "dt=2026-08-23/2026-08-23T090000Z/fresh.json",
+      "{}",
+    );
+    const tools = await loadConnectorTools(home);
+    const result = await invokeJson<RawItemsResult>(
+      getTool(tools, "openwiki_list_raw_items"),
+      { connectorId: "x" },
+    );
+
+    expect(result.files).toEqual([
+      "dt=2026-08-23/2026-08-23T090000Z/fresh.json",
+      "dt=2026-08-22/2026-08-22T100000Z/older-day.json",
+      "2026-07-19T000000Z/legacy.json",
+    ]);
+    expect(result.latestRunId).toBe("dt=2026-08-23/2026-08-23T090000Z");
+    expect(result.latestFiles).toEqual([
+      "dt=2026-08-23/2026-08-23T090000Z/fresh.json",
+    ]);
+  });
+
   test("normalizes Windows raw paths before run-id parsing", async () => {
     const { normalizeRawRelativePath } =
       await import("../../src/connectors/tools.ts");

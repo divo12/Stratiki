@@ -308,7 +308,7 @@ async function listRawItems(connectorId: ConnectorId) {
         ? []
         : files.filter((file) => file.startsWith(`${latestRunId}/`)),
     latestRunId,
-    note: "Files are sorted newest run first so agents should prefer latestFiles for current answers.",
+    note: "Runs are grouped newest first so agents should prefer latestFiles for current answers.",
     rawDir,
   };
 }
@@ -424,14 +424,32 @@ function getRawItemOpenFlags(): number {
 }
 
 function compareRawFilePaths(left: string, right: string): number {
-  const [leftRun = "", leftFile = ""] = left.split("/", 2);
-  const [rightRun = "", rightFile = ""] = right.split("/", 2);
+  const leftRun = getRunDirectoryPrefix(left);
+  const rightRun = getRunDirectoryPrefix(right);
 
   if (leftRun !== rightRun) {
     return rightRun.localeCompare(leftRun);
   }
 
-  return leftFile.localeCompare(rightFile);
+  return left.localeCompare(right);
+}
+
+/**
+ * Resolves the run-directory prefix of one raw file path.
+ *
+ * Date-partitioned layouts use `dt=<date>/<run-id>/…` (two segments); legacy
+ * layouts use `<run-id>/…` (one segment, possibly with nested artifact dirs
+ * below it).
+ *
+ * @param relativeFile - Raw path relative to the connector raw directory.
+ * @returns The run-directory prefix, excluding the trailing separator.
+ */
+function getRunDirectoryPrefix(relativeFile: string): string {
+  const segments = relativeFile.split("/");
+
+  return segments[0]?.startsWith("dt=")
+    ? segments.slice(0, 2).join("/")
+    : (segments[0] ?? "");
 }
 
 function getLatestRunId(files: string[]): string | null {
@@ -440,7 +458,7 @@ function getLatestRunId(files: string[]): string | null {
     return null;
   }
 
-  return firstFile.split("/", 1)[0] ?? null;
+  return getRunDirectoryPrefix(firstFile) || null;
 }
 
 function getConnectorId(input: unknown, key: string): ConnectorId {
