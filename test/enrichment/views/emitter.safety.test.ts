@@ -37,17 +37,19 @@ function setWith(
 describe("identifier-injection safety matrix", () => {
   test("rejects every hostile column name before SQL is built", () => {
     for (const payload of PAYLOADS) {
-      expect(() => emitCreateView(setWith({ columnName: payload })), payload).toThrow(
-        ViewMappingError,
-      );
+      expect(
+        () => emitCreateView(setWith({ columnName: payload })),
+        payload,
+      ).toThrow(ViewMappingError);
     }
   });
 
   test("rejects every hostile json path", () => {
     for (const payload of PATH_PAYLOADS) {
-      expect(() => emitCreateView(setWith({ jsonPath: payload })), payload).toThrow(
-        ViewMappingError,
-      );
+      expect(
+        () => emitCreateView(setWith({ jsonPath: payload })),
+        payload,
+      ).toThrow(ViewMappingError);
     }
   });
 
@@ -69,10 +71,18 @@ describe("identifier-injection safety matrix", () => {
     }
   });
 
+  test("quotes lowercase SQL keywords used as column names", () => {
+    for (const columnName of ["select", "from", "as", "count"]) {
+      expect(emitCreateView(setWith({ columnName }))).toContain(
+        `AS "${columnName}"`,
+      );
+    }
+  });
+
   test("positive control: the known-good mapping still emits", () => {
     const sql = emitCreateView(setWith({}));
 
     expect(sql).toContain("CREATE VIEW IF NOT EXISTS v_stripe_stripe_events");
-    expect(sql).toContain("AS safe");
+    expect(sql).toContain('AS "safe"');
   });
 });

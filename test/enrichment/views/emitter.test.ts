@@ -28,8 +28,8 @@ describe("emitCreateView", () => {
 
     expect(sql).toBe(
       "CREATE VIEW IF NOT EXISTS v_stripe_stripe_events AS " +
-        "SELECT json_extract(content, '$.id') AS event_id, " +
-        "enrich_normalize('text-casefold', json_extract(content, '$.customer.email')) AS customer_email " +
+        "SELECT json_extract(content, '$.id') AS \"event_id\", " +
+        "enrich_normalize('text-casefold', json_extract(content, '$.customer.email')) AS \"customer_email\" " +
         "FROM episodes WHERE connector_id = 'stripe'",
     );
   });
@@ -52,9 +52,25 @@ describe("emitCreateView", () => {
     expect(() => emitCreateView(badColumn)).toThrow(ViewMappingError);
 
     const badPath = buildSet({
-      columns: [{ columnName: "ok", jsonPath: "'; DROP TABLE episodes;--", normalizer: "" }],
+      columns: [
+        {
+          columnName: "ok",
+          jsonPath: "'; DROP TABLE episodes;--",
+          normalizer: "",
+        },
+      ],
     });
     expect(() => emitCreateView(badPath)).toThrow(ViewMappingError);
+
+    for (const jsonPath of [".", "a..b", "arr[abc]"]) {
+      expect(() =>
+        emitCreateView(
+          buildSet({
+            columns: [{ columnName: "ok", jsonPath, normalizer: "" }],
+          }),
+        ),
+      ).toThrow(ViewMappingError);
+    }
 
     const badKind = buildSet({
       columns: [

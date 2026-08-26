@@ -47,7 +47,11 @@ export const SALESFORCE_RECORDS_MAPPINGS: ViewMappingSet = {
       jsonPath: "Email",
       normalizer: "text-casefold",
     },
-    { columnName: "last_modified", jsonPath: "LastModifiedDate", normalizer: "" },
+    {
+      columnName: "last_modified",
+      jsonPath: "LastModifiedDate",
+      normalizer: "",
+    },
     { columnName: "record_id", jsonPath: "Id", normalizer: "" },
   ],
   datasetId: "salesforce/salesforce-records",

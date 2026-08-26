@@ -7,7 +7,8 @@ import path from "node:path";
  * {@link !import("../../enrichment/normalize/index.js").FieldKind}.
  * Empty string projects the raw JSON value untouched.
  */
-export type ViewNormalizerKind = "" | "address" | "phone-e164" | "text-casefold";
+export type ViewNormalizerKind =
+  "" | "address" | "phone-e164" | "text-casefold";
 
 /**
  * One projected column of a dataset view.
@@ -40,6 +41,7 @@ interface MappingDbRow {
   column_name: string;
   json_path: string;
   normalizer: string;
+  version: number | bigint;
 }
 
 const SCHEMA_SQL = `
@@ -51,7 +53,15 @@ CREATE TABLE IF NOT EXISTS view_mappings (
   version INTEGER NOT NULL,
   PRIMARY KEY (dataset_id, column_name)
 );
+CREATE TABLE IF NOT EXISTS managed_dataset_views (
+  dataset_id TEXT PRIMARY KEY
+);
+INSERT OR IGNORE INTO managed_dataset_views (dataset_id)
+SELECT DISTINCT dataset_id FROM view_mappings;
 `;
+
+// ponytail: pre-registry orphan views have no provable owner, so preserve
+// them; add an explicit legacy ownership manifest if automatic cleanup matters.
 
 /**
  * Persists view mapping sets in the lake database. Rows are the single input
@@ -88,6 +98,11 @@ export class ViewMappingStore {
       this.db
         .prepare("DELETE FROM view_mappings WHERE dataset_id = ?")
         .run(set.datasetId);
+      this.db
+        .prepare(
+          "INSERT OR IGNORE INTO managed_dataset_views (dataset_id) VALUES (?)",
+        )
+        .run(set.datasetId);
       const insert = this.db.prepare(
         `INSERT INTO view_mappings (dataset_id, column_name, json_path, normalizer, version)
          VALUES (?, ?, ?, ?, ?)`,
@@ -115,16 +130,13 @@ export class ViewMappingStore {
    * @returns The stored set, or `null` when none exists.
    */
   getMappings(datasetId: string): ViewMappingSet | null {
-    const versionRow = this.db
-      .prepare("SELECT MAX(version) AS version FROM view_mappings WHERE dataset_id = ?")
-      .get(datasetId) as { version: number | bigint | null };
-    if (versionRow.version === null) return null;
-
     const rows = this.db
       .prepare(
-        "SELECT column_name, json_path, normalizer FROM view_mappings WHERE dataset_id = ? ORDER BY rowid",
+        "SELECT column_name, json_path, normalizer, version FROM view_mappings WHERE dataset_id = ? ORDER BY rowid",
       )
       .all(datasetId) as unknown as MappingDbRow[];
+    const first = rows[0];
+    if (first === undefined) return null;
 
     return {
       columns: rows.map((row) => ({
@@ -133,7 +145,7 @@ export class ViewMappingStore {
         normalizer: row.normalizer as ViewNormalizerKind,
       })),
       datasetId,
-      version: Number(versionRow.version),
+      version: Number(first.version),
     };
   }
 
@@ -155,9 +167,29 @@ export class ViewMappingStore {
    */
   listDatasets(): string[] {
     const rows = this.db
-      .prepare("SELECT DISTINCT dataset_id FROM view_mappings ORDER BY dataset_id")
+      .prepare(
+        "SELECT DISTINCT dataset_id FROM view_mappings ORDER BY dataset_id",
+      )
       .all() as unknown as { dataset_id: string }[];
 
     return rows.map((row) => row.dataset_id);
+  }
+
+  /** Lists datasets whose views were created or may need stale cleanup. */
+  listManagedDatasets(): string[] {
+    const rows = this.db
+      .prepare(
+        "SELECT dataset_id FROM managed_dataset_views ORDER BY dataset_id",
+      )
+      .all() as unknown as { dataset_id: string }[];
+
+    return rows.map((row) => row.dataset_id);
+  }
+
+  /** Stops tracking a dataset after its stale view has been removed. */
+  forgetManagedDataset(datasetId: string): void {
+    this.db
+      .prepare("DELETE FROM managed_dataset_views WHERE dataset_id = ?")
+      .run(datasetId);
   }
 }

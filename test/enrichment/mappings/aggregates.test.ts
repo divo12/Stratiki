@@ -15,7 +15,9 @@ const tempRoots: string[] = [];
 
 afterEach(async () => {
   await Promise.all(
-    tempRoots.splice(0).map((root) => rm(root, { force: true, recursive: true })),
+    tempRoots
+      .splice(0)
+      .map((root) => rm(root, { force: true, recursive: true })),
   );
 });
 
@@ -45,17 +47,20 @@ describe("aggregate dataset mappings", () => {
     episodes.close();
 
     const db = new DatabaseSync(dbPath);
+    const mappings = await ViewMappingStore.open(dbPath);
     try {
-      const mappings = await ViewMappingStore.open(dbPath);
       mappings.setMappings(GOOGLE_ADS_MAPPINGS);
       syncDatasetView(db, mappings, GOOGLE_ADS_MAPPINGS.datasetId);
 
       const row = db
-        .prepare("SELECT campaign_id, day, cost FROM v_google_ads_google_ads_performance")
+        .prepare(
+          "SELECT campaign_id, day, cost FROM v_google_ads_google_ads_performance",
+        )
         .get() as unknown as Record<string, string | number>;
       expect(row).toEqual({ campaign_id: "111", cost: 150, day: "2026-08-20" });
     } finally {
       db.close();
+      mappings.close();
     }
   });
 
@@ -78,8 +83,8 @@ describe("aggregate dataset mappings", () => {
     episodes.close();
 
     const db = new DatabaseSync(dbPath);
+    const mappings = await ViewMappingStore.open(dbPath);
     try {
-      const mappings = await ViewMappingStore.open(dbPath);
       mappings.setMappings(META_ADS_MAPPINGS);
       syncDatasetView(db, mappings, META_ADS_MAPPINGS.datasetId);
 
@@ -89,6 +94,7 @@ describe("aggregate dataset mappings", () => {
       expect(projected).toEqual({ campaign_id: "234", spend: 130.2 });
     } finally {
       db.close();
+      mappings.close();
     }
   });
 });

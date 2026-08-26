@@ -5,8 +5,12 @@ export class ViewMappingError extends Error {}
 
 const IDENTIFIER_PATTERN = /^[a-z0-9_]+$/u;
 const CONNECTOR_ID_PATTERN = /^[a-z][a-z0-9-]*$/u;
-const FORBIDDEN_IDENTIFIERS = new Set(["constructor", "prototype", "__proto__"]);
-const JSON_PATH_PATTERN = /^[A-Za-z0-9_.[\]-]+$/u;
+const FORBIDDEN_IDENTIFIERS = new Set([
+  "constructor",
+  "prototype",
+  "__proto__",
+]);
+const JSON_PATH_PATTERN = /^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+|\[\d+\])*$/u;
 
 /**
  * Derives the SQL view name for one dataset id.
@@ -21,7 +25,9 @@ export function viewNameForDataset(datasetId: string): string {
     .replace(/^_+|_+$/gu, "");
 
   if (!IDENTIFIER_PATTERN.test(sanitized)) {
-    throw new ViewMappingError(`Dataset id sanitizes to an invalid identifier: ${datasetId}`);
+    throw new ViewMappingError(
+      `Dataset id sanitizes to an invalid identifier: ${datasetId}`,
+    );
   }
 
   return `v_${sanitized}`;
@@ -62,7 +68,7 @@ export function emitCreateView(set: ViewMappingSet): string {
         ? extraction
         : `enrich_normalize('${assertNormalizerKind(column.normalizer)}', ${extraction})`;
 
-    return `${projected} AS ${column.columnName}`;
+    return `${projected} AS "${column.columnName}"`;
   });
 
   return [
@@ -88,11 +94,7 @@ function assertValidJsonPath(jsonPath: string): void {
 }
 
 function assertNormalizerKind(kind: string): FieldKind {
-  if (
-    kind !== "address" &&
-    kind !== "phone-e164" &&
-    kind !== "text-casefold"
-  ) {
+  if (kind !== "address" && kind !== "phone-e164" && kind !== "text-casefold") {
     throw new ViewMappingError(`Invalid normalizer kind: ${kind}`);
   }
 

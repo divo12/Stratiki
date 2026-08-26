@@ -38,13 +38,51 @@ describe("normalizeAddress", () => {
   });
 
   test("handles UK-style alphanumeric postcodes", () => {
-    const result = normalizeAddress("10 Downing St, London, Westminster SW1A 2AA, UK");
+    const result = normalizeAddress(
+      "10 Downing St, London, Westminster SW1A 2AA, UK",
+    );
     expect(JSON.parse(result.ok ? result.value : "{}")).toMatchObject({
       city: "London",
       region: "Westminster",
       postal: "SW1A 2AA",
       country: "UK",
     });
+  });
+
+  test("handles a postcode without a region", () => {
+    const result = normalizeAddress("10 Downing St, London, SW1A 2AA");
+    expect(JSON.parse(result.ok ? result.value : "{}")).toMatchObject({
+      city: "London",
+      region: "",
+      postal: "SW1A 2AA",
+    });
+  });
+
+  test("supports separate region and postal segments", () => {
+    const result = normalizeAddress("1 Main St, Springfield, Illinois, 62704");
+    expect(JSON.parse(result.ok ? result.value : "{}")).toMatchObject({
+      city: "Springfield",
+      region: "Illinois",
+      postal: "62704",
+    });
+  });
+
+  test("accepts Unicode country names", () => {
+    const result = normalizeAddress(
+      "1 Reforma, CDMX, Ciudad de México, México",
+    );
+    expect(JSON.parse(result.ok ? result.value : "{}")).toMatchObject({
+      city: "CDMX",
+      region: "Ciudad de México",
+      country: "México",
+    });
+  });
+
+  test("rejects empty and ambiguous segments", () => {
+    expect(normalizeAddress("1 Main St,, Springfield").ok).toBe(false);
+    expect(
+      normalizeAddress("1 Main St, Springfield, Illinois, unknown, 62704").ok,
+    ).toBe(false);
   });
 
   test("fails closed on garbage instead of guessing parts", () => {

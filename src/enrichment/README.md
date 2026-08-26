@@ -9,11 +9,11 @@ mapping registry, and SQLite views projected from episodes.
 `src/enrichment/normalize/index.ts` exposes `normalizeValue(kind, raw)` with
 an exhaustive `FieldKind` union:
 
-| Kind | Output |
-| --- | --- |
-| `phone-e164` | E.164 when the input leads with `+`, else digits-only; extensions dropped; 7–15 significant digits enforced |
-| `address` | Canonical `{line1, city, region, postal, country}` JSON string |
-| `text-casefold` | NFC-folded, whitespace-collapsed, lowercased match key |
+| Kind            | Output                                                                                                      |
+| --------------- | ----------------------------------------------------------------------------------------------------------- |
+| `phone-e164`    | E.164 when the input leads with `+`, else digits-only; extensions dropped; 7–15 significant digits enforced |
+| `address`       | Canonical `{line1, city, region, postal, country}` JSON string                                              |
+| `text-casefold` | NFC-folded, whitespace-collapsed, lowercased match key                                                      |
 
 Every normalizer returns `{ok: true, value} | {ok: false, reason}` and never
 throws.
@@ -37,7 +37,9 @@ before interpolation; JSON path literals escape single quotes by doubling.
 `src/enrichment/views/lifecycle.ts` exposes `syncDatasetView(db, mappings,
 datasetId)` and `syncAllViews(db, mappings)`: views are created when absent,
 replaced only when emitted DDL drifts, untouched otherwise, and dropped when a
-dataset loses its mappings.
+dataset loses its mappings. Only explicitly tracked views are eligible for
+cleanup; unknown `v_` views, including pre-registry orphans, are preserved
+because their ownership cannot be proven safely.
 
 View names are derived as `v_` + the dataset id with non-alphanumeric runs
 collapsed to `_` (`stripe/stripe-events` → `v_stripe_stripe_events`).
@@ -47,4 +49,4 @@ collapsed to `_` (`stripe/stripe-events` → `v_stripe_stripe_events`).
 `src/enrichment/mappings/` declares static mapping sets for the record-level
 datasets (CRM in `crm.ts`, aggregates in `aggregates.ts`) plus the
 cross-dataset `v_customers` draft, which unions normalized contact emails by
-exact casefolded key — no fuzzy matching exists in Phase 1.
+exact lowercase key — no fuzzy matching exists in Phase 1.

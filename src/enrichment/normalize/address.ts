@@ -32,10 +32,11 @@ const POSTAL_PATTERN =
  * @returns Canonical `{line1, city, region, postal, country}` JSON string.
  */
 export function normalizeAddress(raw: string): AddressResult {
-  const parts = raw
-    .split(",")
-    .map((part) => part.trim())
-    .filter((part) => part.length > 0);
+  const parts = raw.split(",").map((part) => part.trim());
+
+  if (parts.some((part) => part.length === 0)) {
+    return { ok: false, reason: "address contains an empty segment" };
+  }
 
   if (parts.length < 2) {
     return { ok: false, reason: "address needs at least street and city" };
@@ -52,7 +53,7 @@ export function normalizeAddress(raw: string): AddressResult {
   const remainder = parts.slice(1);
   if (remainder.length >= 3) {
     const candidate = remainder.at(-1) ?? "";
-    if (/^[A-Za-z][A-Za-z .'-]*$/u.test(candidate)) {
+    if (/^\p{L}[\p{L} .'-]*$/u.test(candidate)) {
       address.country = candidate;
       remainder.pop();
     }
@@ -63,11 +64,24 @@ export function normalizeAddress(raw: string): AddressResult {
   }
 
   address.city = remainder[0] ?? "";
+  if (remainder.length > 3) {
+    return { ok: false, reason: "address has too many segments" };
+  }
+  if (remainder.length === 3) {
+    const postal = remainder[2] ?? "";
+    if (!POSTAL_PATTERN.test(postal)) {
+      return { ok: false, reason: "address has ambiguous trailing segments" };
+    }
+    address.region = remainder[1] ?? "";
+    address.postal = postal;
+
+    return { ok: true, value: JSON.stringify(address satisfies AddressJson) };
+  }
   if (remainder.length >= 2) {
     const regionPart = remainder.at(-1) ?? "";
     const tokens = regionPart.split(/\s+/u).filter(Boolean);
     const twoTokenPostal =
-      tokens.length >= 3 ? tokens.slice(-2).join(" ") : undefined;
+      tokens.length >= 2 ? tokens.slice(-2).join(" ") : undefined;
     const singlePostal = tokens.at(-1) ?? "";
 
     if (twoTokenPostal !== undefined && POSTAL_PATTERN.test(twoTokenPostal)) {

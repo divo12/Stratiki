@@ -29,7 +29,7 @@ async function createHarness(): Promise<TestHarness> {
   episodes.admit({
     bytes: Buffer.byteLength(JSON.stringify({ id: "evt_1" })),
     connectorId: "stripe",
-    content: JSON.stringify({ customerEmail: "a@acme.com", id: "evt_1" }),
+    content: JSON.stringify({ customerEmail: "A@Acme.com", id: "evt_1" }),
     eventTimeIso: "2026-08-20T10:00:00Z",
     runId: "run-1",
     sourceRef: "stripe-events.json#events#evt_1",
@@ -53,7 +53,11 @@ async function createHarness(): Promise<TestHarness> {
 function stripeMappings(version: number): ViewMappingSet {
   return {
     columns: [
-      { columnName: "customer_email", jsonPath: "customerEmail", normalizer: "text-casefold" },
+      {
+        columnName: "customer_email",
+        jsonPath: "customerEmail",
+        normalizer: "text-casefold",
+      },
       { columnName: "event_id", jsonPath: "id", normalizer: "" },
     ],
     datasetId: "stripe/stripe-events",
@@ -63,7 +67,9 @@ function stripeMappings(version: number): ViewMappingSet {
 
 afterEach(async () => {
   await Promise.all(
-    tempRoots.splice(0).map((root) => rm(root, { force: true, recursive: true })),
+    tempRoots
+      .splice(0)
+      .map((root) => rm(root, { force: true, recursive: true })),
   );
 });
 
@@ -134,6 +140,57 @@ describe("view lifecycle", () => {
         )
         .all();
       expect(remaining).toHaveLength(0);
+    } finally {
+      await harness.cleanup();
+    }
+  });
+
+  test("preserves cross-dataset and other unmanaged v_ views", async () => {
+    const harness = await createHarness();
+    try {
+      harness.mappings.setMappings(stripeMappings(1));
+      harness.db.exec(
+        'CREATE VIEW v_customers AS SELECT 1; CREATE VIEW "v_external""quoted" AS SELECT 1',
+      );
+
+      syncAllViews(harness.db, harness.mappings);
+
+      const names = harness.db
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type = 'view' ORDER BY name",
+        )
+        .all() as unknown as { name: string }[];
+      expect(names.map(({ name }) => name)).toEqual([
+        "v_customers",
+        'v_external"quoted',
+        "v_stripe_stripe_events",
+      ]);
+    } finally {
+      await harness.cleanup();
+    }
+  });
+
+  test("rejects colliding dataset view names before creating either view", async () => {
+    const harness = await createHarness();
+    try {
+      for (const datasetId of ["stripe/a-b", "stripe/a_b"]) {
+        harness.mappings.setMappings({
+          columns: [{ columnName: "id", jsonPath: "id", normalizer: "" }],
+          datasetId,
+          version: 1,
+        });
+      }
+
+      expect(() => syncAllViews(harness.db, harness.mappings)).toThrow(
+        "Dataset ids map to the same view",
+      );
+      expect(
+        harness.db
+          .prepare(
+            "SELECT 1 FROM sqlite_master WHERE type = 'view' AND name = 'v_stripe_a_b'",
+          )
+          .get(),
+      ).toBeUndefined();
     } finally {
       await harness.cleanup();
     }

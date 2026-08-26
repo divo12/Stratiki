@@ -11,9 +11,7 @@ import {
   STRIPE_EVENTS_MAPPINGS,
   ZENDESK_TICKETS_MAPPINGS,
 } from "../../../src/enrichment/mappings/crm.ts";
-import {
-  emitCustomersView,
-} from "../../../src/enrichment/mappings/customers.ts";
+import { emitCustomersView } from "../../../src/enrichment/mappings/customers.ts";
 import { syncAllViews } from "../../../src/enrichment/views/lifecycle.ts";
 
 const tempRoots: string[] = [];
@@ -58,6 +56,12 @@ async function createHarness(): Promise<Harness> {
     status: "open",
     updatedAt: "2026-08-21T09:00:00Z",
   });
+  admit("stripe", "stripe-events.json#events#evt_1b", {
+    createdAt: "2026-08-20T10:30:00Z",
+    customerEmail: "DANA@ACME.COM",
+    id: "evt_1b",
+    type: "invoice.updated",
+  });
   admit("salesforce", "Contact#001", {
     Email: "dana@acme.com",
     Id: "001",
@@ -98,35 +102,47 @@ async function createHarness(): Promise<Harness> {
 afterEach(async () => {
   vi.resetModules();
   await Promise.all(
-    tempRoots.splice(0).map((root) => rm(root, { force: true, recursive: true })),
+    tempRoots
+      .splice(0)
+      .map((root) => rm(root, { force: true, recursive: true })),
   );
 });
 
 describe("v_customers cross-dataset view", () => {
   test("unifies one case-varied email across three sources", async () => {
     const harness = await createHarness();
+    try {
+      const row = harness.db
+        .prepare(
+          "SELECT customer_email, sources FROM v_customers WHERE customer_email = 'dana@acme.com'",
+        )
+        .get() as unknown as { customer_email: string; sources: string };
 
-    const row = harness.db
-      .prepare("SELECT customer_email, sources FROM v_customers WHERE customer_email = 'dana@acme.com'")
-      .get() as unknown as { customer_email: string; sources: string };
-
-    expect(row.sources.split(",").sort()).toEqual([
-      "salesforce",
-      "stripe",
-      "zendesk",
-    ]);
+      expect(row.sources.split(",").sort()).toEqual([
+        "salesforce",
+        "stripe",
+        "zendesk",
+      ]);
+    } finally {
+      await harness.cleanup();
+    }
   });
 
   test("keeps disjoint emails as separate entities", async () => {
     const harness = await createHarness();
+    try {
+      const rows = harness.db
+        .prepare(
+          "SELECT customer_email FROM v_customers ORDER BY customer_email",
+        )
+        .all() as unknown as { customer_email: string }[];
 
-    const rows = harness.db
-      .prepare("SELECT customer_email FROM v_customers ORDER BY customer_email")
-      .all() as unknown as { customer_email: string }[];
-
-    expect(rows.map((row) => row.customer_email)).toEqual([
-      "dana@acme.com",
-      "other@beta.io",
-    ]);
+      expect(rows.map((row) => row.customer_email)).toEqual([
+        "dana@acme.com",
+        "other@beta.io",
+      ]);
+    } finally {
+      await harness.cleanup();
+    }
   });
 });

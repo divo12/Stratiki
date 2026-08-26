@@ -11,9 +11,7 @@ import {
   STRIPE_EVENTS_MAPPINGS,
   ZENDESK_TICKETS_MAPPINGS,
 } from "../../../src/enrichment/mappings/crm.ts";
-import {
-  emitCustomersView,
-} from "../../../src/enrichment/mappings/customers.ts";
+import { emitCustomersView } from "../../../src/enrichment/mappings/customers.ts";
 import { syncDatasetView } from "../../../src/enrichment/views/lifecycle.ts";
 
 const tempRoots: string[] = [];
@@ -47,26 +45,46 @@ async function createHarness(): Promise<Harness> {
     });
   };
 
-  admit("stripe", "stripe-events.json#events#evt_9", {
-    createdAt: "2026-08-20T10:00:00Z",
-    customerEmail: "Dana@Acme.com",
-    id: "evt_9",
-    type: "invoice.paid",
-  }, "2026-08-20T10:00:00Z");
-  admit("zendesk", "tickets#11", {
-    id: 11,
-    status: "OPEN",
-    updatedAt: "2026-08-21T09:00:00Z",
-  }, "2026-08-21T09:00:00Z");
-  admit("salesforce", "Account#001", {
-    Email: "dana@acme.com",
-    Id: "001",
-    LastModifiedDate: "2026-08-19T08:00:00Z",
-  }, "2026-08-19T08:00:00Z");
-  admit("hubspot", "contacts#501", {
-    id: 501,
-    properties: { email: "dana@acme.com" },
-  }, "2026-08-18T07:00:00Z");
+  admit(
+    "stripe",
+    "stripe-events.json#events#evt_9",
+    {
+      createdAt: "2026-08-20T10:00:00Z",
+      customerEmail: "Dana@Acme.com",
+      id: "evt_9",
+      type: "invoice.paid",
+    },
+    "2026-08-20T10:00:00Z",
+  );
+  admit(
+    "zendesk",
+    "tickets#11",
+    {
+      id: 11,
+      status: "OPEN",
+      updatedAt: "2026-08-21T09:00:00Z",
+    },
+    "2026-08-21T09:00:00Z",
+  );
+  admit(
+    "salesforce",
+    "Account#001",
+    {
+      Email: "dana@acme.com",
+      Id: "001",
+      LastModifiedDate: "2026-08-19T08:00:00Z",
+    },
+    "2026-08-19T08:00:00Z",
+  );
+  admit(
+    "hubspot",
+    "contacts#501",
+    {
+      id: 501,
+      properties: { email: "dana@acme.com" },
+    },
+    "2026-08-18T07:00:00Z",
+  );
   episodes.close();
 
   const db = new DatabaseSync(dbPath);
@@ -85,7 +103,9 @@ async function createHarness(): Promise<Harness> {
 
 afterEach(async () => {
   await Promise.all(
-    tempRoots.splice(0).map((root) => rm(root, { force: true, recursive: true })),
+    tempRoots
+      .splice(0)
+      .map((root) => rm(root, { force: true, recursive: true })),
   );
 });
 
@@ -104,7 +124,9 @@ describe("CRM dataset mappings", () => {
       }
 
       const stripe = harness.db
-        .prepare("SELECT event_id, event_type, customer_email FROM v_stripe_stripe_events")
+        .prepare(
+          "SELECT event_id, event_type, customer_email FROM v_stripe_stripe_events",
+        )
         .get() as unknown as Record<string, string>;
       expect(stripe).toEqual({
         customer_email: "dana@acme.com",
@@ -118,7 +140,9 @@ describe("CRM dataset mappings", () => {
       expect(zendesk).toEqual({ status: "open", ticket_id: 11 });
 
       const salesforce = harness.db
-        .prepare("SELECT record_id, contact_email FROM v_salesforce_salesforce_records")
+        .prepare(
+          "SELECT record_id, contact_email FROM v_salesforce_salesforce_records",
+        )
         .get() as unknown as Record<string, string>;
       expect(salesforce).toEqual({
         contact_email: "dana@acme.com",

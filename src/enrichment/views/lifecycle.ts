@@ -1,5 +1,9 @@
 import type { DatabaseSync } from "node:sqlite";
-import { emitCreateView, viewNameForDataset } from "./emitter.js";
+import {
+  emitCreateView,
+  viewNameForDataset,
+  ViewMappingError,
+} from "./emitter.js";
 import type { ViewMappingStore } from "../../book/view-mappings.js";
 import { normalizeValue, type FieldKind } from "../normalize/index.js";
 
@@ -74,6 +78,17 @@ export function syncDatasetView(
   }
 
   const viewName = viewNameForDataset(datasetId);
+  const collision = mappings
+    .listDatasets()
+    .find(
+      (otherId) =>
+        otherId !== datasetId && viewNameForDataset(otherId) === viewName,
+    );
+  if (collision !== undefined) {
+    throw new ViewMappingError(
+      `Dataset ids map to the same view: ${datasetId}, ${collision}`,
+    );
+  }
   const sql = emitCreateView(set);
   const existingRow = db
     .prepare("SELECT sql FROM sqlite_master WHERE type = 'view' AND name = ?")
@@ -111,23 +126,27 @@ export function syncAllViews(
 ): ViewSyncOutcome[] {
   ensureNormalizeUdf(db);
 
+  const datasetIds = mappings.listDatasets();
   const outcomes: ViewSyncOutcome[] = [];
-  for (const datasetId of mappings.listDatasets()) {
+  for (const datasetId of datasetIds) {
     outcomes.push(syncDatasetView(db, mappings, datasetId));
   }
 
-  const keepNames = new Set(mappings.listDatasets().map(viewNameForDataset));
-  const currentViews = db
-    .prepare(
-      "SELECT name FROM sqlite_master WHERE type = 'view' AND name LIKE 'v\\_%' ESCAPE '\\'",
-    )
-    .all() as unknown as { name: string }[];
+  const keepNames = new Set(datasetIds.map(viewNameForDataset));
+  for (const datasetId of mappings.listManagedDatasets()) {
+    if (datasetIds.includes(datasetId)) continue;
 
-  for (const { name } of currentViews) {
+    const name = viewNameForDataset(datasetId);
     if (!keepNames.has(name)) {
-      db.prepare(`DROP VIEW "${name}"`).run();
-      outcomes.push({ action: "dropped", viewName: name });
+      const exists = db
+        .prepare("SELECT 1 FROM sqlite_master WHERE type = 'view' AND name = ?")
+        .get(name);
+      if (exists !== undefined) {
+        db.prepare(`DROP VIEW "${name.replaceAll('"', '""')}"`).run();
+        outcomes.push({ action: "dropped", viewName: name });
+      }
     }
+    mappings.forgetManagedDataset(datasetId);
   }
 
   return outcomes;

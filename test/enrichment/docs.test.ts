@@ -2,14 +2,15 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, test } from "vitest";
 import * as normalize from "../../src/enrichment/normalize/index.ts";
-import { emitCreateView } from "../../src/enrichment/views/emitter.ts";
+import {
+  emitCreateView,
+  viewNameForDataset,
+} from "../../src/enrichment/views/emitter.ts";
 import {
   syncAllViews,
   syncDatasetView,
 } from "../../src/enrichment/views/lifecycle.ts";
-import {
-  ViewMappingStore,
-} from "../../src/book/view-mappings.ts";
+import { ViewMappingStore } from "../../src/book/view-mappings.ts";
 
 const README_PATH = path.join(
   import.meta.dirname,
@@ -41,9 +42,19 @@ describe("enrichment docs", () => {
   test("documents every declared normalizer kind and the naming contract", () => {
     const readme = readFileSync(README_PATH, "utf8");
 
-    for (const kind of ["phone-e164", "address", "text-casefold"]) {
+    for (const kind of normalize.FIELD_KINDS) {
       expect(readme).toContain(`\`${kind}\``);
     }
+    expect(normalize.normalizeValue("phone-e164", "+1 (415) 555-2671")).toEqual(
+      {
+        ok: true,
+        value: "+14155552671",
+      },
+    );
+    expect(viewNameForDataset("stripe/stripe-events")).toBe(
+      "v_stripe_stripe_events",
+    );
+    expect(readme).toContain("7–15 significant digits");
     expect(readme).toContain("`v_stripe_stripe_events`");
     expect(readme).toContain("no fuzzy matching exists in Phase 1");
   });

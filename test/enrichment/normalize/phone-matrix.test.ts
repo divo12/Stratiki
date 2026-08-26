@@ -12,6 +12,7 @@ const MATRIX: readonly MatrixCase[] = [
   { input: "+1.415.555.2671", expected: "+14155552671" },
   { input: "+44/20/7946/0958", expected: "+442079460958" },
   { input: "+91–98765–43210", expected: "+919876543210" },
+  { input: "+91—98765—43210", expected: "+919876543210" },
   { input: "07500 123456", expected: "07500123456" },
   { input: "(011) 44-20-7946-0958", expected: "011442079460958" },
   { input: "+81-3-1234-5678;1", expected: "+81312345678" },
@@ -30,10 +31,12 @@ describe("phone portability matrix", () => {
   });
 
   test("matrix covers every formatting character class the core strips", () => {
-    const stripped = MATRIX.filter((matrixCase) =>
-      /[\s().\-–—/#;,]/u.test(matrixCase.input),
-    );
-    expect(stripped.length).toBeGreaterThanOrEqual(8);
+    for (const character of [" ", "(", ")", ".", "-", "–", "—", "/"]) {
+      expect(
+        MATRIX.some((matrixCase) => matrixCase.input.includes(character)),
+        character,
+      ).toBe(true);
+    }
   });
 
   test("no matrix case silently loses more than formatting", () => {

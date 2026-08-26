@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
+  FIELD_KINDS,
   normalizeValue,
   type FieldKind,
 } from "../../../src/enrichment/normalize/index.ts";
@@ -10,9 +11,7 @@ describe("normalizeValue registry", () => {
       ok: true,
       value: "+14155552671",
     });
-    expect(
-      normalizeValue("address", "1 Main St, Springfield").ok,
-    ).toBe(true);
+    expect(normalizeValue("address", "1 Main St, Springfield").ok).toBe(true);
     expect(normalizeValue("text-casefold", "  Acme Corp ")).toEqual({
       ok: true,
       value: "acme corp",
@@ -26,15 +25,14 @@ describe("normalizeValue registry", () => {
     expect(normalizeValue("address", "one blob")).toMatchObject({
       ok: false,
     });
+    expect(normalizeValue("constructor" as FieldKind, "x")).toEqual({
+      ok: false,
+      reason: "unknown normalization kind: constructor",
+    });
   });
 
   test("FieldKind stays exhaustive over the registry keys", () => {
-    const kinds: readonly FieldKind[] = [
-      "address",
-      "phone-e164",
-      "text-casefold",
-    ];
-    for (const kind of kinds) {
+    for (const kind of FIELD_KINDS) {
       const result = normalizeValue(kind, "x");
       expect(result.ok === true || typeof result.reason === "string").toBe(
         true,

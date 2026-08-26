@@ -10,7 +10,7 @@ import {
  * Emits the cross-dataset customer draft view: one row per distinct
  * normalized contact email, with the contributing sources aggregated.
  *
- * Matching is deterministic exact-key only (casefolded email); Phase 1 has
+ * Matching is deterministic exact-key only (normalized lowercase email); Phase 1 has
  * no fuzzy or probabilistic merging.
  *
  * @returns Deterministic CREATE VIEW SQL for `v_customers`.
@@ -21,7 +21,11 @@ export function emitCustomersView(): string {
     source: CustomersSource;
     sql: string;
   }[] = [
-    { source: "stripe", sql: emitCreateView(STRIPE_EVENTS_MAPPINGS), column: "customer_email" },
+    {
+      source: "stripe",
+      sql: emitCreateView(STRIPE_EVENTS_MAPPINGS),
+      column: "customer_email",
+    },
     {
       source: "zendesk",
       sql: emitCreateView(ZENDESK_TICKETS_MAPPINGS),
@@ -46,7 +50,7 @@ export function emitCustomersView(): string {
     )
     .join(" UNION ALL ");
 
-  return `CREATE VIEW IF NOT EXISTS v_customers AS SELECT match_key AS customer_email, group_concat(source, ',') AS sources FROM (${union}) WHERE match_key IS NOT NULL AND match_key <> '' GROUP BY match_key`;
+  return `CREATE VIEW IF NOT EXISTS v_customers AS SELECT match_key AS customer_email, group_concat(DISTINCT source) AS sources FROM (${union}) WHERE match_key IS NOT NULL AND match_key <> '' GROUP BY match_key`;
 }
 
 type CustomersSource = "hubspot" | "salesforce" | "stripe" | "zendesk";

@@ -1,5 +1,5 @@
 export interface TextNormalization {
-  /** Casefolded, whitespace-collapsed key intended for matching columns. */
+  /** Lowercased, whitespace-collapsed key intended for matching columns. */
   readonly matchKey: string;
 
   /** Display form: NFC-folded and trimmed, original casing preserved. */

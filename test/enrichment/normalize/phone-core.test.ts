@@ -28,12 +28,20 @@ describe("normalizePhoneCore", () => {
     });
   });
 
-  test("drops extensions after x, #, comma, or semicolon", () => {
+  test("drops extensions after words, x, #, comma, or semicolon", () => {
     expect(normalizePhoneCore("+1 415 555 2671 x123")).toEqual({
       ok: true,
       value: "+14155552671",
     });
     expect(normalizePhoneCore("415-555-2671#99")).toEqual({
+      ok: true,
+      value: "4155552671",
+    });
+    expect(normalizePhoneCore("415-555-2671 ext. 99")).toEqual({
+      ok: true,
+      value: "4155552671",
+    });
+    expect(normalizePhoneCore("415-555-2671 extension 99")).toEqual({
       ok: true,
       value: "4155552671",
     });

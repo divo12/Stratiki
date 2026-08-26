@@ -5,14 +5,19 @@ import { normalizeText } from "./text.js";
 /**
  * Kinds of normalization a view-mapping column can request.
  */
-export type FieldKind = "address" | "phone-e164" | "text-casefold";
+export const FIELD_KINDS = ["address", "phone-e164", "text-casefold"] as const;
+
+export type FieldKind = (typeof FIELD_KINDS)[number];
 
 export type NormalizeResult =
   | { readonly ok: true; readonly value: string }
   | { readonly ok: false; readonly reason: string };
 
 const REGISTRY: Readonly<
-  Record<FieldKind, (raw: string) => { ok: boolean; value?: string; reason?: string }>
+  Record<
+    FieldKind,
+    (raw: string) => { ok: boolean; value?: string; reason?: string }
+  >
 > = {
   address: normalizeAddress,
   "phone-e164": normalizePhone,
@@ -34,6 +39,10 @@ const REGISTRY: Readonly<
  * @returns Normalized string value, or a labeled failure reason.
  */
 export function normalizeValue(kind: FieldKind, raw: string): NormalizeResult {
+  if (!Object.hasOwn(REGISTRY, kind)) {
+    return { ok: false, reason: `unknown normalization kind: ${kind}` };
+  }
+
   const result = REGISTRY[kind](raw);
 
   return result.ok && result.value !== undefined

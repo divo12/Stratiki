@@ -20,41 +20,52 @@ async function createStore(): Promise<{
 
 afterEach(async () => {
   await Promise.all(
-    tempRoots.splice(0).map((root) => rm(root, { force: true, recursive: true })),
+    tempRoots
+      .splice(0)
+      .map((root) => rm(root, { force: true, recursive: true })),
   );
 });
 
 describe("ViewMappingStore", () => {
   test("upserts, lists by dataset, and clears atomically", async () => {
     const { store } = await createStore();
+    try {
+      store.setMappings({
+        columns: [
+          { columnName: "event_id", jsonPath: "id", normalizer: "" },
+          {
+            columnName: "customer_email",
+            jsonPath: "customer.email",
+            normalizer: "text-casefold",
+          },
+        ],
+        datasetId: "stripe/stripe-events",
+        version: 1,
+      });
 
-    store.setMappings({
-      columns: [
-        { columnName: "event_id", jsonPath: "id", normalizer: "" },
-        { columnName: "customer_email", jsonPath: "customer.email", normalizer: "text-casefold" },
-      ],
-      datasetId: "stripe/stripe-events",
-      version: 1,
-    });
+      const loaded = store.getMappings("stripe/stripe-events");
+      expect(loaded?.version).toBe(1);
+      expect(loaded?.columns.map((column) => column.columnName)).toEqual([
+        "event_id",
+        "customer_email",
+      ]);
 
-    const loaded = store.getMappings("stripe/stripe-events");
-    expect(loaded?.version).toBe(1);
-    expect(loaded?.columns.map((column) => column.columnName)).toEqual([
-      "event_id",
-      "customer_email",
-    ]);
+      // Upsert replaces the full set: old columns disappear.
+      store.setMappings({
+        columns: [{ columnName: "event_id", jsonPath: "id", normalizer: "" }],
+        datasetId: "stripe/stripe-events",
+        version: 2,
+      });
+      expect(store.getMappings("stripe/stripe-events")?.columns).toHaveLength(
+        1,
+      );
+      expect(store.getMappings("stripe/stripe-events")?.version).toBe(2);
 
-    // Upsert replaces the full set: old columns disappear.
-    store.setMappings({
-      columns: [{ columnName: "event_id", jsonPath: "id", normalizer: "" }],
-      datasetId: "stripe/stripe-events",
-      version: 2,
-    });
-    expect(store.getMappings("stripe/stripe-events")?.columns).toHaveLength(1);
-    expect(store.getMappings("stripe/stripe-events")?.version).toBe(2);
-
-    store.clearDataset("stripe/stripe-events");
-    expect(store.getMappings("stripe/stripe-events")).toBeNull();
+      store.clearDataset("stripe/stripe-events");
+      expect(store.getMappings("stripe/stripe-events")).toBeNull();
+    } finally {
+      store.close();
+    }
   });
 
   test("survives a reopen against the same database file", async () => {
@@ -73,17 +84,24 @@ describe("ViewMappingStore", () => {
 
   test("lists datasets in sorted order", async () => {
     const { store } = await createStore();
-    for (const datasetId of ["meta-ads/meta-insights", "stripe/stripe-events"]) {
-      store.setMappings({
-        columns: [{ columnName: "c", jsonPath: "x", normalizer: "" }],
-        datasetId,
-        version: 1,
-      });
-    }
+    try {
+      for (const datasetId of [
+        "meta-ads/meta-insights",
+        "stripe/stripe-events",
+      ]) {
+        store.setMappings({
+          columns: [{ columnName: "c", jsonPath: "x", normalizer: "" }],
+          datasetId,
+          version: 1,
+        });
+      }
 
-    expect(store.listDatasets()).toEqual([
-      "meta-ads/meta-insights",
-      "stripe/stripe-events",
-    ]);
+      expect(store.listDatasets()).toEqual([
+        "meta-ads/meta-insights",
+        "stripe/stripe-events",
+      ]);
+    } finally {
+      store.close();
+    }
   });
 });

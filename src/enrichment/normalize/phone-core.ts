@@ -3,7 +3,7 @@ export type PhoneCoreResult =
   | { readonly ok: false; readonly reason: string };
 
 const ALLOWED_FORMATTING = /[\s().\-–—/]/gu;
-const EXTENSION_SPLIT = /[xX#*,;]/u;
+const EXTENSION_SPLIT = /(?:ext(?:ension)?\.?|[x#*,;])/iu;
 const DIGITS_ONLY = /^[0-9]+$/u;
 
 /**
