@@ -27,8 +27,10 @@ afterEach(async () => {
 describe("ContextIndex", () => {
   test("indexes nested markdown and ranks matching pages", async () => {
     const wikiDir = await createWiki({
-      "architecture/overview.md": "---\ntitle: Architecture\n---\nThe deploy pipeline uses blue-green releases.",
-      "quickstart.md": "# Quickstart\nRun stratiki init to generate the book. The deploy pipeline is documented elsewhere.",
+      "architecture/overview.md":
+        "---\ntitle: Architecture\n---\nThe deploy pipeline uses blue-green releases.",
+      "quickstart.md":
+        "# Quickstart\nRun stratiki init to generate the book. The deploy pipeline is documented elsewhere.",
       "claims/notes.md": "Unrelated content about coffee preferences.",
     });
     const index = await ContextIndex.buildFromDirectory(wikiDir);
@@ -39,9 +41,13 @@ describe("ContextIndex", () => {
       expect(entries.length).toBeGreaterThanOrEqual(2);
       expect(entries.map((entry) => entry.path)).toContain("/quickstart.md");
       // Titles come from front matter or the first heading.
-      const architecture = entries.find((entry) => entry.path === "/architecture/overview.md");
+      const architecture = entries.find(
+        (entry) => entry.path === "/architecture/overview.md",
+      );
       expect(architecture?.title).toBe("Architecture");
-      const quickstart = entries.find((entry) => entry.path === "/quickstart.md");
+      const quickstart = entries.find(
+        (entry) => entry.path === "/quickstart.md",
+      );
       expect(quickstart?.title).toBe("Quickstart");
     } finally {
       index.close();
@@ -50,16 +56,17 @@ describe("ContextIndex", () => {
 
   test("skips dot-directories like .claims", async () => {
     const wikiDir = await createWiki({
-      ".claims/secret-page.md": "Internal claim metadata should never be searchable.",
+      ".claims/secret-page.md":
+        "Internal claim metadata should never be searchable.",
       "public.md": "# Public page\nVisible knowledge.",
     });
     const index = await ContextIndex.buildFromDirectory(wikiDir);
 
     try {
       expect(index.search("claim metadata")).toEqual([]);
-      expect(index.search("visible knowledge").map((entry) => entry.path)).toEqual([
-        "/public.md",
-      ]);
+      expect(
+        index.search("visible knowledge").map((entry) => entry.path),
+      ).toEqual(["/public.md"]);
     } finally {
       index.close();
     }
@@ -81,7 +88,11 @@ describe("ContextIndex", () => {
 describe("renderPacket", () => {
   test("renders provenance-first markdown", () => {
     const packet = renderPacket("deploy pipeline", [
-      { excerpt: ">>blue-green<< releases", path: "/arch.md", title: "Architecture" },
+      {
+        excerpt: ">>blue-green<< releases",
+        path: "/arch.md",
+        title: "Architecture",
+      },
     ]);
 
     expect(packet).toContain("# Context packet");

@@ -90,7 +90,7 @@ async function runStandardCommand(
   } else if (command.kind === "cron") {
     await runCronCommand(command);
   } else if (command.kind === "book") {
-    await runBookCommand(command);
+    await runBookCommand(command, command.mode);
   } else if (command.kind === "ingest") {
     await runIngestCommand(command);
   } else if (command.kind === "visualize") {
