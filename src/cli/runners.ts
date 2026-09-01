@@ -21,6 +21,9 @@ import { CONNECTOR_IDS, isConnectorId } from "../connectors/registry.js";
 import {
   openWikiBookDbPath,
   openWikiHomeDir,
+  getStratikiCompanyWikiDir,
+  getStratikiBookDbPath,
+  ensureStratikiHome,
 } from "../config/openwiki-home.js";
 import { resolveConfiguredProvider } from "../config/constants.js";
 import {
@@ -46,7 +49,7 @@ import {
 } from "../telemetry/index.js";
 import { exportStaticVisualizer } from "../visualize/static-export.js";
 import { runVisualizeServer } from "../visualize/server.js";
-import type { CliCommand } from "./commands.js";
+import type { CliCommand, OpenWikiRunMode } from "./commands.js";
 import { isDebugMode } from "./debug.js";
 import { getAuthFix, getAuthFixSteps } from "./diagnostics/auth-fix.js";
 import { getErrorDiagnostics } from "./diagnostics/error-diagnostics.js";
@@ -390,18 +393,29 @@ export function writePrintErrorDiagnostics(error: unknown): void {
 
 /**
  * Dispatches `stratiki book` subcommands: init, status, refresh, context.
+ * Company mode uses the Stratiki home; other modes default to repo openwiki/.
  */
 export async function runBookCommand(
   command: Extract<CliCommand, { kind: "book" }>,
+  mode: OpenWikiRunMode = "code",
 ): Promise<void> {
-  const bookDir = path.join(process.cwd(), "openwiki");
+  const bookDir =
+    mode === "company"
+      ? getStratikiCompanyWikiDir()
+      : path.join(process.cwd(), "openwiki");
+  const bookDbPath =
+    mode === "company" ? getStratikiBookDbPath() : openWikiBookDbPath;
+
+  if (mode === "company") {
+    await ensureStratikiHome();
+  }
 
   if (command.action === "init") {
     await initBookManifest(bookDir, command);
     return;
   }
   if (command.action === "status") {
-    await printBookStatus(bookDir);
+    await printBookStatus(bookDir, bookDbPath);
     return;
   }
   if (command.action === "context") {
@@ -409,7 +423,7 @@ export async function runBookCommand(
     return;
   }
 
-  await refreshBook(bookDir);
+  await refreshBook(bookDir, bookDbPath);
 }
 
 async function initBookManifest(
@@ -450,9 +464,12 @@ async function initBookManifest(
  * Prints episode-store counts plus per-source tier/staleness derived from
  * the workspace manifest.
  */
-async function printBookStatus(bookDir: string): Promise<void> {
+async function printBookStatus(
+  bookDir: string,
+  bookDbPath: string,
+): Promise<void> {
   const manifest = await loadManifestOrThrow(bookDir);
-  const store = await EpisodeStore.open(openWikiBookDbPath);
+  const store = await EpisodeStore.open(bookDbPath);
 
   try {
     process.stdout.write(`Workspace: ${manifest.name}\n`);
@@ -491,7 +508,7 @@ async function printBookStatus(bookDir: string): Promise<void> {
  * sources under a single-writer lease so concurrent refreshes cannot
  * interleave wiki edits.
  */
-async function refreshBook(bookDir: string): Promise<void> {
+async function refreshBook(bookDir: string, bookDbPath: string): Promise<void> {
   const leasePath = path.join(openWikiHomeDir, "refresh.lock");
   const lease = BookLease.at(leasePath);
   const acquired = await lease.acquire();
@@ -507,7 +524,7 @@ async function refreshBook(bookDir: string): Promise<void> {
   try {
     const manifest = await loadManifestOrThrow(bookDir);
     const latestByConnector = new Map<string, EpisodeRecord>();
-    const store = await EpisodeStore.open(openWikiBookDbPath);
+    const store = await EpisodeStore.open(bookDbPath);
     try {
       for (const episode of store.listRecent(1000)) {
         if (!latestByConnector.has(episode.connectorId)) {

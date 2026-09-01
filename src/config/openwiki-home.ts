@@ -4,6 +4,7 @@ import path from "node:path";
 import { restrictDirToCurrentUser } from "../platform/windows-acl.js";
 
 export const OPENWIKI_CONFIG_DIR_ENV_KEY = "OPENWIKI_CONFIG_DIR";
+export const STRATIKI_HOME_ENV_KEY = "STRATIKI_HOME";
 
 export function resolveOpenWikiHomeDir(
   environment: NodeJS.ProcessEnv = process.env,
@@ -36,6 +37,34 @@ export function getOpenWikiHomeDisplayPath(
     : "~/.openwiki";
 }
 
+export function resolveStratikiHomeDir(
+  environment: NodeJS.ProcessEnv = process.env,
+): string {
+  const configuredDir = environment[STRATIKI_HOME_ENV_KEY]?.trim();
+
+  if (!configuredDir) {
+    return path.join(os.homedir(), ".stratiki");
+  }
+
+  if (configuredDir === "~") {
+    return path.join(os.homedir());
+  }
+
+  if (configuredDir.startsWith("~/") || configuredDir.startsWith("~\\")) {
+    return path.resolve(os.homedir(), configuredDir.slice(2));
+  }
+
+  return path.resolve(configuredDir);
+}
+
+export function getStratikiHomeDisplayPath(
+  environment: NodeJS.ProcessEnv = process.env,
+): string {
+  return environment[STRATIKI_HOME_ENV_KEY]?.trim()
+    ? resolveStratikiHomeDir(environment)
+    : "~/.stratiki";
+}
+
 export const openWikiHomeDir = resolveOpenWikiHomeDir();
 export const openWikiHomeDisplayPath = getOpenWikiHomeDisplayPath();
 export const openWikiConnectorsDir = path.join(openWikiHomeDir, "connectors");
@@ -50,6 +79,32 @@ export const openWikiConnectorsDisplayPath = `${openWikiHomeDisplayPath}/connect
 export const openWikiLocalWikiDisplayPath = `${openWikiHomeDisplayPath}/wiki`;
 export const openWikiSkillsDisplayPath = `${openWikiHomeDisplayPath}/skills`;
 export const openWikiEnvDisplayPath = `${openWikiHomeDisplayPath}/.env`;
+
+// Stratiki getters - lazy to avoid homedir() during module init
+let _stratikiHomeDir: string | undefined;
+let _stratikiCompanyWikiDir: string | undefined;
+let _stratikiBookDbPath: string | undefined;
+
+export function getStratikiHomeDir(): string {
+  if (_stratikiHomeDir === undefined) {
+    _stratikiHomeDir = resolveStratikiHomeDir();
+  }
+  return _stratikiHomeDir;
+}
+
+export function getStratikiCompanyWikiDir(): string {
+  if (_stratikiCompanyWikiDir === undefined) {
+    _stratikiCompanyWikiDir = path.join(getStratikiHomeDir(), "wiki");
+  }
+  return _stratikiCompanyWikiDir;
+}
+
+export function getStratikiBookDbPath(): string {
+  if (_stratikiBookDbPath === undefined) {
+    _stratikiBookDbPath = path.join(getStratikiHomeDir(), "book.db");
+  }
+  return _stratikiBookDbPath;
+}
 
 export function getConnectorDir(connectorId: string): string {
   return path.join(openWikiConnectorsDir, connectorId);
@@ -79,6 +134,15 @@ export async function ensureOpenWikiHome(): Promise<void> {
   await mkdir(openWikiConversationHistoryDir, { recursive: true, mode: 0o700 });
   await mkdir(openWikiLocalWikiDir, { recursive: true, mode: 0o700 });
   await mkdir(openWikiSkillsDir, { recursive: true, mode: 0o700 });
+}
+
+export async function ensureStratikiHome(): Promise<void> {
+  const homeDir = getStratikiHomeDir();
+  const wikiDir = getStratikiCompanyWikiDir();
+  await mkdir(homeDir, { recursive: true, mode: 0o700 });
+  await chmodIfExists(homeDir, 0o700);
+  await restrictDirToCurrentUser(homeDir);
+  await mkdir(wikiDir, { recursive: true, mode: 0o700 });
 }
 
 export async function ensureConnectorHome(connectorId: string): Promise<void> {
