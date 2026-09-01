@@ -1,7 +1,7 @@
 import type { OpenWikiOutputMode } from "../agent/types.js";
 import {
   openWikiLocalWikiDir,
-  stratikiCompanyWikiDir,
+  getStratikiCompanyWikiDir,
 } from "../config/openwiki-home.js";
 import type { CliCommand, OpenWikiRunMode } from "./commands.js";
 
@@ -46,7 +46,7 @@ export function getRunModeCwd(
   codeRuntimeCwd = process.cwd(),
 ): string {
   if (mode === "code") return codeRuntimeCwd;
-  if (mode === "company") return stratikiCompanyWikiDir;
+  if (mode === "company") return getStratikiCompanyWikiDir();
   return openWikiLocalWikiDir;
 }
 
