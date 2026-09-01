@@ -15,10 +15,7 @@ export function decomposeDecision(
   bookIndex: ContextIndex,
 ): DecompositionResult {
   const contextEntries = bookIndex.search(decision.description, 10);
-  const goals = extractGoalsFromDecision(
-    decision,
-    contextEntries,
-  );
+  const goals = extractGoalsFromDecision(decision, contextEntries);
 
   return {
     decision,

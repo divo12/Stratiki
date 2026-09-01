@@ -89,7 +89,7 @@ describe("decomposeDecision", () => {
 
     try {
       const result = decomposeDecision(decision, index);
-      const sorted = result.goals.sort((a, b) => b.rank - a.rank);
+      const sorted = [...result.goals].sort((a, b) => b.rank - a.rank);
 
       const authGoal = sorted.find((g) =>
         g.description.toLowerCase().includes("authentication"),

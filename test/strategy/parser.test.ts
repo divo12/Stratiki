@@ -22,15 +22,15 @@ describe("parseDecisionSeed", () => {
   });
 
   test("throws on empty description", () => {
-    expect(() =>
-      parseDecisionSeed({ description: "" }),
-    ).toThrowError("Decision description cannot be empty");
+    expect(() => parseDecisionSeed({ description: "" })).toThrowError(
+      "Decision description cannot be empty",
+    );
   });
 
   test("throws on whitespace-only description", () => {
-    expect(() =>
-      parseDecisionSeed({ description: "   " }),
-    ).toThrowError("Decision description cannot be empty");
+    expect(() => parseDecisionSeed({ description: "   " })).toThrowError(
+      "Decision description cannot be empty",
+    );
   });
 
   test("throws on description over 500 characters", () => {
