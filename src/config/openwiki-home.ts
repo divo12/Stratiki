@@ -84,6 +84,7 @@ export const openWikiEnvDisplayPath = `${openWikiHomeDisplayPath}/.env`;
 let _stratikiHomeDir: string | undefined;
 let _stratikiCompanyWikiDir: string | undefined;
 let _stratikiBookDbPath: string | undefined;
+let _stratikiStrategyDir: string | undefined;
 
 export function getStratikiHomeDir(): string {
   if (_stratikiHomeDir === undefined) {
@@ -104,6 +105,13 @@ export function getStratikiBookDbPath(): string {
     _stratikiBookDbPath = path.join(getStratikiHomeDir(), "book.db");
   }
   return _stratikiBookDbPath;
+}
+
+export function getStratikiStrategyDir(): string {
+  if (_stratikiStrategyDir === undefined) {
+    _stratikiStrategyDir = path.join(getStratikiHomeDir(), "strategy");
+  }
+  return _stratikiStrategyDir;
 }
 
 export function getConnectorDir(connectorId: string): string {
@@ -139,10 +147,12 @@ export async function ensureOpenWikiHome(): Promise<void> {
 export async function ensureStratikiHome(): Promise<void> {
   const homeDir = getStratikiHomeDir();
   const wikiDir = getStratikiCompanyWikiDir();
+  const strategyDir = getStratikiStrategyDir();
   await mkdir(homeDir, { recursive: true, mode: 0o700 });
   await chmodIfExists(homeDir, 0o700);
   await restrictDirToCurrentUser(homeDir);
   await mkdir(wikiDir, { recursive: true, mode: 0o700 });
+  await mkdir(strategyDir, { recursive: true, mode: 0o700 });
 }
 
 export async function ensureConnectorHome(connectorId: string): Promise<void> {
