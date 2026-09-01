@@ -35,9 +35,7 @@ export class FileStrategyStore implements StrategyStore {
     await mkdir(this.strategyDir, { recursive: true });
 
     for (const goal of goals) {
-      const goalsForDecision = await this.getGoalsForDecision(
-        goal.decisionId,
-      );
+      const goalsForDecision = await this.getGoalsForDecision(goal.decisionId);
       const existingIndex = goalsForDecision.findIndex((g) => g.id === goal.id);
 
       if (existingIndex >= 0) {
@@ -60,7 +58,7 @@ export class FileStrategyStore implements StrategyStore {
         `${this.strategyDir}/decisions.json`,
         "utf8",
       );
-      return JSON.parse(content);
+      return JSON.parse(content) as Decision[];
     } catch {
       return [];
     }
@@ -73,7 +71,7 @@ export class FileStrategyStore implements StrategyStore {
         `${this.strategyDir}/goals-${decisionId}.json`,
         "utf8",
       );
-      return JSON.parse(content);
+      return JSON.parse(content) as Goal[];
     } catch {
       return [];
     }

@@ -88,7 +88,10 @@ function isLeaseContents(value: unknown): value is LeaseContents {
   );
 }
 
-async function mkdirAndWrite(filePath: string, contents: LeaseContents): Promise<void> {
+async function mkdirAndWrite(
+  filePath: string,
+  contents: LeaseContents,
+): Promise<void> {
   await mkdir(path.dirname(filePath), { recursive: true });
   await writeFile(filePath, `${JSON.stringify(contents, null, 2)}\n`, "utf8");
 }

@@ -459,7 +459,8 @@ export async function runStrategyCommand(
     process.stdout.write(`  ${result.decision.description}\n`);
     process.stdout.write(`\nGenerated ${result.goals.length} goal(s):\n`);
 
-    for (const goal of result.goals.sort((a, b) => b.rank - a.rank)) {
+    const sortedGoals = [...result.goals].sort((a, b) => b.rank - a.rank);
+    for (const goal of sortedGoals) {
       process.stdout.write(
         `\n- [rank ${goal.rank}] ${goal.description}\n  Grounded in: ${goal.groundedIn.length > 0 ? goal.groundedIn.join(", ") : "none"}\n`,
       );
