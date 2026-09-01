@@ -75,9 +75,11 @@ export const openWikiConversationHistoryDir = path.join(
 export const openWikiLocalWikiDir = path.join(openWikiHomeDir, "wiki");
 export const openWikiBookDbPath = path.join(openWikiHomeDir, "book.db");
 export const openWikiSkillsDir = path.join(openWikiHomeDir, "skills");
+export const openWikiStrategyDir = path.join(openWikiHomeDir, "strategy");
 export const openWikiConnectorsDisplayPath = `${openWikiHomeDisplayPath}/connectors`;
 export const openWikiLocalWikiDisplayPath = `${openWikiHomeDisplayPath}/wiki`;
 export const openWikiSkillsDisplayPath = `${openWikiHomeDisplayPath}/skills`;
+export const openWikiStrategyDisplayPath = `${openWikiHomeDisplayPath}/strategy`;
 export const openWikiEnvDisplayPath = `${openWikiHomeDisplayPath}/.env`;
 
 // Stratiki getters - lazy to avoid homedir() during module init
@@ -134,6 +136,7 @@ export async function ensureOpenWikiHome(): Promise<void> {
   await mkdir(openWikiConversationHistoryDir, { recursive: true, mode: 0o700 });
   await mkdir(openWikiLocalWikiDir, { recursive: true, mode: 0o700 });
   await mkdir(openWikiSkillsDir, { recursive: true, mode: 0o700 });
+  await mkdir(openWikiStrategyDir, { recursive: true, mode: 0o700 });
 }
 
 export async function ensureStratikiHome(): Promise<void> {
