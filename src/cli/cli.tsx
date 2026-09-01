@@ -25,6 +25,7 @@ import {
   runIngestCommand,
   runNgrokCommand,
   runPrintCommand,
+  runStrategyCommand,
   runVisualizeCommand,
 } from "./runners.js";
 import { runIntegrationsCommand, runMcpCommand } from "./integrations.js";
@@ -91,6 +92,8 @@ async function runStandardCommand(
     await runCronCommand(command);
   } else if (command.kind === "book") {
     await runBookCommand(command);
+  } else if (command.kind === "strategy") {
+    await runStrategyCommand(command);
   } else if (command.kind === "ingest") {
     await runIngestCommand(command);
   } else if (command.kind === "visualize") {
