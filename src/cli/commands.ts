@@ -151,6 +151,12 @@ export type CliCommand =
       name: string | null;
       query: string | null;
     }
+  | {
+      kind: "strategy";
+      action: "seed" | "list";
+      exitCode: 0;
+      description: string | null;
+    }
   | { kind: "help"; exitCode: 0 }
   | {
       kind: "run";
@@ -190,6 +196,10 @@ export function parseCommand(argv: string[]): CliCommand {
 
   if (argv[0] === "book") {
     return parseBookCommand(argv.slice(1));
+  }
+
+  if (argv[0] === "strategy") {
+    return parseStrategyCommand(argv.slice(1));
   }
 
   if (argv[0] === "auth") {
@@ -830,6 +840,34 @@ function parseBookCommand(argv: string[]): CliCommand {
   }
 
   return { action, exitCode: 0, force, kind: "book", mode, name, query };
+}
+
+function parseStrategyCommand(argv: string[]): CliCommand {
+  const action = argv[0];
+
+  if (action !== "seed" && action !== "list") {
+    return {
+      exitCode: 1,
+      kind: "error",
+      message: "Usage: stratiki strategy seed <description> | list",
+    };
+  }
+
+  if (action === "list") {
+    return { action: "list", description: null, exitCode: 0, kind: "strategy" };
+  }
+
+  const description = argv.slice(1).join(" ").trim();
+
+  if (description.length === 0) {
+    return {
+      exitCode: 1,
+      kind: "error",
+      message: "Usage: stratiki strategy seed <description>",
+    };
+  }
+
+  return { action: "seed", description, exitCode: 0, kind: "strategy" };
 }
 
 /**

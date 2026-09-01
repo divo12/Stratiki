@@ -426,6 +426,63 @@ export async function runBookCommand(
   await refreshBook(bookDir, bookDbPath);
 }
 
+/**
+ * Dispatches `stratiki strategy` subcommands: seed, list.
+ */
+export async function runStrategyCommand(
+  command: Extract<CliCommand, { kind: "strategy" }>,
+): Promise<void> {
+  const { parseDecisionSeed } = await import("../strategy/parser.js");
+  const { decomposeDecision } = await import("../strategy/decomposer.js");
+  const { FileStrategyStore } = await import("../strategy/store.js");
+  const bookDir = path.join(process.cwd(), "openwiki");
+  const strategyDir = path.join(bookDir, ".strategy");
+  const store = new FileStrategyStore(strategyDir);
+
+  if (command.action === "list") {
+    const decisions = await store.listDecisions();
+    if (decisions.length === 0) {
+      process.stdout.write("No decisions seeded yet.\n");
+      return;
+    }
+
+    process.stdout.write(`Decisions (${decisions.length}):\n`);
+    for (const decision of decisions) {
+      const goals = await store.getGoalsForDecision(decision.id);
+      process.stdout.write(
+        `\n${decision.id}: ${decision.description}\n  Status: ${decision.status}\n  Goals: ${goals.length}\n`,
+      );
+    }
+    return;
+  }
+
+  if (command.description === null) {
+    process.stderr.write("Description is required for seed action.\n");
+    process.exitCode = 1;
+    return;
+  }
+
+  const decision = parseDecisionSeed({ description: command.description });
+  const index = await ContextIndex.buildFromDirectory(bookDir);
+  try {
+    const result = decomposeDecision(decision, index);
+    await store.saveDecision(result.decision);
+    await store.saveGoals(result.goals);
+
+    process.stdout.write(`Seeded decision: ${result.decision.id}\n`);
+    process.stdout.write(`  ${result.decision.description}\n`);
+    process.stdout.write(`\nGenerated ${result.goals.length} goal(s):\n`);
+
+    for (const goal of result.goals.sort((a, b) => b.rank - a.rank)) {
+      process.stdout.write(
+        `\n- [rank ${goal.rank}] ${goal.description}\n  Grounded in: ${goal.groundedIn.length > 0 ? goal.groundedIn.join(", ") : "none"}\n`,
+      );
+    }
+  } finally {
+    index.close();
+  }
+}
+
 async function initBookManifest(
   bookDir: string,
   command: Extract<CliCommand, { kind: "book" }>,
