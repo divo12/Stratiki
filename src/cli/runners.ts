@@ -435,9 +435,7 @@ export async function runStrategyCommand(
   const { parseDecisionSeed } = await import("../strategy/parser.js");
   const { decomposeDecision } = await import("../strategy/decomposer.js");
   const { FileStrategyStore } = await import("../strategy/store.js");
-  const { openWikiStrategyDir } = await import(
-    "../config/openwiki-home.js"
-  );
+  const { openWikiStrategyDir } = await import("../config/openwiki-home.js");
   const bookDir = path.join(process.cwd(), "openwiki");
   const store = new FileStrategyStore(openWikiStrategyDir);
 
