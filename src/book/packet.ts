@@ -134,9 +134,7 @@ function toRelativeDisplayPath(wikiDir: string, filePath: string): string {
 }
 
 function extractTitle(raw: string, filePath: string): string {
-  const frontMatterTitle = raw
-    .match(/^---[\s\S]*?^title:\s*(.+)$/mu)?.[1]
-    ?.trim();
+  const frontMatterTitle = raw.match(/^---[\s\S]*?^title:\s*(.+)$/mu)?.[1]?.trim();
   if (frontMatterTitle !== undefined && frontMatterTitle.length > 0) {
     return stripQuotes(frontMatterTitle);
   }

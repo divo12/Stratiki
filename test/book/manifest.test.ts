@@ -179,42 +179,4 @@ describe("book init name bound", () => {
     const command = parseCommand(["book", "init", "--name", "x".repeat(120)]);
     expect(command.kind).toBe("book");
   });
-
-  test("book init accepts --mode company", async () => {
-    const { parseCommand } = await import("../../src/cli/commands.js");
-    const command = parseCommand(["book", "init", "--mode", "company"]);
-    expect(command).toMatchObject({
-      kind: "book",
-      action: "init",
-      mode: "company",
-    });
-  });
-
-  test("book status defaults to code mode", async () => {
-    const { parseCommand } = await import("../../src/cli/commands.js");
-    const command = parseCommand(["book", "status"]);
-    expect(command).toMatchObject({
-      kind: "book",
-      action: "status",
-      mode: "code",
-    });
-  });
-
-  test("book context accepts query and --mode company", async () => {
-    const { parseCommand } = await import("../../src/cli/commands.js");
-    const command = parseCommand([
-      "book",
-      "context",
-      "--mode",
-      "company",
-      "test",
-      "query",
-    ]);
-    expect(command).toMatchObject({
-      kind: "book",
-      action: "context",
-      mode: "company",
-      query: "test query",
-    });
-  });
 });

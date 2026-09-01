@@ -816,9 +816,7 @@ describe("parseCommand — --mode option forms and conflicts", () => {
 
     expect(result.kind).toBe("error");
     if (result.kind === "error") {
-      expect(result.message).toMatch(
-        /--mode requires personal, code, or company/u,
-      );
+      expect(result.message).toMatch(/--mode requires personal or code/u);
     }
   });
 

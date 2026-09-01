@@ -81,10 +81,7 @@ describe("BookLease", () => {
     // Simulate a foreign holder by writing its lease directly.
     await writeFile(
       leasePath,
-      JSON.stringify({
-        acquiredAtIso: new Date().toISOString(),
-        owner: "other",
-      }),
+      JSON.stringify({ acquiredAtIso: new Date().toISOString(), owner: "other" }),
       "utf8",
     );
     const impostor = BookLease.at(leasePath, "impostor");

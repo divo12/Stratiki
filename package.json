@@ -96,7 +96,6 @@
     }
   },
   "devDependencies": {
-    "@changesets/cli": "^3.0.1",
     "@eslint/js": "^10.0.1",
     "@types/better-sqlite3": "^7.6.12",
     "@types/jsdom": "^28.0.3",

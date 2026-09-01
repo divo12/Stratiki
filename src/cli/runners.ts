@@ -21,8 +21,6 @@ import { CONNECTOR_IDS, isConnectorId } from "../connectors/registry.js";
 import {
   openWikiBookDbPath,
   openWikiHomeDir,
-  getStratikiHomeDir,
-  getStratikiBookDbPath,
 } from "../config/openwiki-home.js";
 import { resolveConfiguredProvider } from "../config/constants.js";
 import {
@@ -48,7 +46,7 @@ import {
 } from "../telemetry/index.js";
 import { exportStaticVisualizer } from "../visualize/static-export.js";
 import { runVisualizeServer } from "../visualize/server.js";
-import type { CliCommand, OpenWikiRunMode } from "./commands.js";
+import type { CliCommand } from "./commands.js";
 import { isDebugMode } from "./debug.js";
 import { getAuthFix, getAuthFixSteps } from "./diagnostics/auth-fix.js";
 import { getErrorDiagnostics } from "./diagnostics/error-diagnostics.js";
@@ -392,25 +390,18 @@ export function writePrintErrorDiagnostics(error: unknown): void {
 
 /**
  * Dispatches `stratiki book` subcommands: init, status, refresh, context.
- * Company mode uses the Stratiki home; other modes default to repo openwiki/.
  */
 export async function runBookCommand(
   command: Extract<CliCommand, { kind: "book" }>,
-  mode: OpenWikiRunMode = "code",
 ): Promise<void> {
-  const bookDir =
-    mode === "company"
-      ? path.join(getStratikiHomeDir(), "openwiki")
-      : path.join(process.cwd(), "openwiki");
-  const bookDbPath =
-    mode === "company" ? getStratikiBookDbPath() : openWikiBookDbPath;
+  const bookDir = path.join(process.cwd(), "openwiki");
 
   if (command.action === "init") {
     await initBookManifest(bookDir, command);
     return;
   }
   if (command.action === "status") {
-    await printBookStatus(bookDir, bookDbPath);
+    await printBookStatus(bookDir);
     return;
   }
   if (command.action === "context") {
@@ -418,65 +409,7 @@ export async function runBookCommand(
     return;
   }
 
-  await refreshBook(bookDir, bookDbPath);
-}
-
-/**
- * Dispatches `stratiki strategy` subcommands: seed, list.
- */
-export async function runStrategyCommand(
-  command: Extract<CliCommand, { kind: "strategy" }>,
-): Promise<void> {
-  const { parseDecisionSeed } = await import("../strategy/parser.js");
-  const { decomposeDecision } = await import("../strategy/decomposer.js");
-  const { FileStrategyStore } = await import("../strategy/store.js");
-  const { openWikiStrategyDir } = await import("../config/openwiki-home.js");
-  const bookDir = path.join(process.cwd(), "openwiki");
-  const store = new FileStrategyStore(openWikiStrategyDir);
-
-  if (command.action === "list") {
-    const decisions = await store.listDecisions();
-    if (decisions.length === 0) {
-      process.stdout.write("No decisions seeded yet.\n");
-      return;
-    }
-
-    process.stdout.write(`Decisions (${decisions.length}):\n`);
-    for (const decision of decisions) {
-      const goals = await store.getGoalsForDecision(decision.id);
-      process.stdout.write(
-        `\n${decision.id}: ${decision.description}\n  Status: ${decision.status}\n  Goals: ${goals.length}\n`,
-      );
-    }
-    return;
-  }
-
-  if (command.description === null) {
-    process.stderr.write("Description is required for seed action.\n");
-    process.exitCode = 1;
-    return;
-  }
-
-  const decision = parseDecisionSeed({ description: command.description });
-  const index = await ContextIndex.buildFromDirectory(bookDir);
-  try {
-    const result = decomposeDecision(decision, index);
-    await store.saveDecision(result.decision);
-    await store.saveGoals(result.goals);
-
-    process.stdout.write(`Seeded decision: ${result.decision.id}\n`);
-    process.stdout.write(`  ${result.decision.description}\n`);
-    process.stdout.write(`\nGenerated ${result.goals.length} goal(s):\n`);
-
-    const sortedGoals = [...result.goals].sort((a, b) => b.rank - a.rank);
-    for (const goal of sortedGoals) {
-      process.stdout.write(
-        `\n- [rank ${goal.rank}] ${goal.description}\n  Grounded in: ${goal.groundedIn.length > 0 ? goal.groundedIn.join(", ") : "none"}\n`,
-      );
-    }
-  } finally {
-    index.close();
-  }
+  await refreshBook(bookDir);
 }
 
 async function initBookManifest(
@@ -517,12 +450,9 @@ async function initBookManifest(
  * Prints episode-store counts plus per-source tier/staleness derived from
  * the workspace manifest.
  */
-async function printBookStatus(
-  bookDir: string,
-  bookDbPath: string,
-): Promise<void> {
+async function printBookStatus(bookDir: string): Promise<void> {
   const manifest = await loadManifestOrThrow(bookDir);
-  const store = await EpisodeStore.open(bookDbPath);
+  const store = await EpisodeStore.open(openWikiBookDbPath);
 
   try {
     process.stdout.write(`Workspace: ${manifest.name}\n`);
@@ -561,7 +491,7 @@ async function printBookStatus(
  * sources under a single-writer lease so concurrent refreshes cannot
  * interleave wiki edits.
  */
-async function refreshBook(bookDir: string, bookDbPath: string): Promise<void> {
+async function refreshBook(bookDir: string): Promise<void> {
   const leasePath = path.join(openWikiHomeDir, "refresh.lock");
   const lease = BookLease.at(leasePath);
   const acquired = await lease.acquire();
@@ -577,7 +507,7 @@ async function refreshBook(bookDir: string, bookDbPath: string): Promise<void> {
   try {
     const manifest = await loadManifestOrThrow(bookDir);
     const latestByConnector = new Map<string, EpisodeRecord>();
-    const store = await EpisodeStore.open(bookDbPath);
+    const store = await EpisodeStore.open(openWikiBookDbPath);
     try {
       for (const episode of store.listRecent(1000)) {
         if (!latestByConnector.has(episode.connectorId)) {

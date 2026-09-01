@@ -40,20 +40,14 @@ describe("planRefresh", () => {
       NOW,
     );
 
-    expect(due.map((decision) => decision.entry.connectorId)).toEqual([
-      "github",
-    ]);
-    expect(deferred.map((decision) => decision.entry.connectorId)).toEqual([
-      "linear",
-    ]);
+    expect(due.map((decision) => decision.entry.connectorId)).toEqual(["github"]);
+    expect(deferred.map((decision) => decision.entry.connectorId)).toEqual(["linear"]);
     // 168h window minus 0.5h elapsed rounds up to a whole remaining hour.
     expect(deferred[0]?.hoursRemaining).toBe(168);
   });
 
   test("a source past its tier window is due with the elapsed reason", () => {
-    const oldIngest = new Date(
-      NOW.getTime() - 25 * 60 * 60 * 1000,
-    ).toISOString();
+    const oldIngest = new Date(NOW.getTime() - 25 * 60 * 60 * 1000).toISOString();
     const { due } = planRefresh(
       { hackernews: "daily" },
       new Map([["hackernews", episode(oldIngest, "hackernews")]]),
@@ -67,11 +61,7 @@ describe("planRefresh", () => {
 
   test("an unparseable last-ingest timestamp defers to due, never silently stalls", () => {
     const broken = episode("not-a-timestamp");
-    const { due, deferred } = planRefresh(
-      { rss: "cold" },
-      new Map([["rss", broken]]),
-      NOW,
-    );
+    const { due, deferred } = planRefresh({ rss: "cold" }, new Map([["rss", broken]]), NOW);
 
     expect(deferred).toEqual([]);
     expect(due).toHaveLength(1);

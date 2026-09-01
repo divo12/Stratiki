@@ -1,8 +1,5 @@
 import type { OpenWikiOutputMode } from "../agent/types.js";
-import {
-  openWikiLocalWikiDir,
-  getStratikiCompanyWikiDir,
-} from "../config/openwiki-home.js";
+import { openWikiLocalWikiDir } from "../config/openwiki-home.js";
 import type { CliCommand, OpenWikiRunMode } from "./commands.js";
 
 /**
@@ -33,8 +30,7 @@ export function shouldPrintStartupError(
 
 /**
  * Resolves the working directory for a run: the code runtime's cwd in `code`
- * mode, otherwise the local wiki directory for `personal` or company wiki for
- * `company`.
+ * mode, otherwise the local wiki directory.
  *
  * @param codeRuntimeCwd Working directory used in `code` mode.
  *
@@ -45,9 +41,7 @@ export function getRunModeCwd(
   mode: OpenWikiRunMode,
   codeRuntimeCwd = process.cwd(),
 ): string {
-  if (mode === "code") return codeRuntimeCwd;
-  if (mode === "company") return getStratikiCompanyWikiDir();
-  return openWikiLocalWikiDir;
+  return mode === "code" ? codeRuntimeCwd : openWikiLocalWikiDir;
 }
 
 /**

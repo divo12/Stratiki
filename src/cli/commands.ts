@@ -23,7 +23,7 @@ export type HelpRow = {
   description: string;
 };
 
-export type OpenWikiRunMode = "personal" | "code" | "company";
+export type OpenWikiRunMode = "personal" | "code";
 type CronTarget = Extract<IngestionTarget, string>;
 
 export type HelpContent = {
@@ -147,15 +147,8 @@ export type CliCommand =
       action: "context" | "init" | "refresh" | "status";
       exitCode: 0;
       force: boolean;
-      mode: OpenWikiRunMode;
       name: string | null;
       query: string | null;
-    }
-  | {
-      kind: "strategy";
-      action: "seed" | "list";
-      exitCode: 0;
-      description: string | null;
     }
   | { kind: "help"; exitCode: 0 }
   | {
@@ -196,10 +189,6 @@ export function parseCommand(argv: string[]): CliCommand {
 
   if (argv[0] === "book") {
     return parseBookCommand(argv.slice(1));
-  }
-
-  if (argv[0] === "strategy") {
-    return parseStrategyCommand(argv.slice(1));
   }
 
   if (argv[0] === "auth") {
@@ -730,7 +719,6 @@ function parseMcpCommand(argv: string[]): CliCommand {
 
 /**
  * Parses `stratiki book` subcommands: init, status, refresh, context.
- * Accepts --mode to specify company mode (defaults to code mode for repo book).
  */
 function parseBookCommand(argv: string[]): CliCommand {
   const action = argv[0];
@@ -753,9 +741,7 @@ function parseBookCommand(argv: string[]): CliCommand {
   let force = false;
   let name: string | null = null;
   let query: string | null = null;
-  let mode: OpenWikiRunMode = "code";
   let sawName = false;
-  let sawMode = false;
 
   for (let index = 1; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -795,36 +781,6 @@ function parseBookCommand(argv: string[]): CliCommand {
       continue;
     }
 
-    if (arg === "--mode" || arg.startsWith("--mode=")) {
-      if (sawMode) {
-        return {
-          kind: "error",
-          exitCode: 1,
-          message: "--mode may only be specified once.",
-        };
-      }
-      const value =
-        arg === "--mode" ? argv[index + 1] : arg.slice("--mode=".length);
-      if (!value || value.startsWith("-")) {
-        return {
-          kind: "error",
-          exitCode: 1,
-          message: "--mode requires a mode (personal, code, or company).",
-        };
-      }
-      if (!isOpenWikiRunMode(value)) {
-        return {
-          kind: "error",
-          exitCode: 1,
-          message: `Invalid mode: ${value}. Expected personal, code, or company.`,
-        };
-      }
-      mode = value;
-      sawMode = true;
-      if (arg === "--mode") index += 1;
-      continue;
-    }
-
     if (action === "context" && !arg.startsWith("-")) {
       query = query === null ? arg : `${query} ${arg}`;
       continue;
@@ -839,35 +795,7 @@ function parseBookCommand(argv: string[]): CliCommand {
     };
   }
 
-  return { action, exitCode: 0, force, kind: "book", mode, name, query };
-}
-
-function parseStrategyCommand(argv: string[]): CliCommand {
-  const action = argv[0];
-
-  if (action !== "seed" && action !== "list") {
-    return {
-      exitCode: 1,
-      kind: "error",
-      message: "Usage: stratiki strategy seed <description> | list",
-    };
-  }
-
-  if (action === "list") {
-    return { action: "list", description: null, exitCode: 0, kind: "strategy" };
-  }
-
-  const description = argv.slice(1).join(" ").trim();
-
-  if (description.length === 0) {
-    return {
-      exitCode: 1,
-      kind: "error",
-      message: "Usage: stratiki strategy seed <description>",
-    };
-  }
-
-  return { action: "seed", description, exitCode: 0, kind: "strategy" };
+  return { action, exitCode: 0, force, kind: "book", name, query };
 }
 
 /**
@@ -984,7 +912,7 @@ function parseRunCommand(
         return {
           kind: "error",
           exitCode: 1,
-          message: "--mode requires personal, code, or company.",
+          message: "--mode requires personal or code.",
         };
       }
 
@@ -992,7 +920,7 @@ function parseRunCommand(
         return {
           kind: "error",
           exitCode: 1,
-          message: `Invalid mode: ${nextArg}. Expected personal, code, or company.`,
+          message: `Invalid mode: ${nextArg}. Expected personal or code.`,
         };
       }
 
@@ -1014,7 +942,7 @@ function parseRunCommand(
         return {
           kind: "error",
           exitCode: 1,
-          message: `Invalid mode: ${rawMode}. Expected personal, code, or company.`,
+          message: `Invalid mode: ${rawMode}. Expected personal or code.`,
         };
       }
 
@@ -1184,7 +1112,7 @@ function resolveExplicitMode(
 function isOpenWikiRunMode(
   value: string | undefined,
 ): value is OpenWikiRunMode {
-  return value === "personal" || value === "code" || value === "company";
+  return value === "personal" || value === "code";
 }
 
 /**
@@ -1250,8 +1178,7 @@ export const helpContent: HelpContent = {
     "stratiki [--init|--update] [message]",
     "stratiki code [--init|--update] [message]",
     "stratiki personal [--init|--update] [message]",
-    "stratiki company [--init|--update] [message]",
-    "stratiki --mode <personal|code|company> [--init|--update] [message]",
+    "stratiki --mode <personal|code> [--init|--update] [message]",
     "stratiki [--language <locale>] [--init|--update] [message]",
     "stratiki [--modelId <model>]",
     "stratiki [--modelId <model>] [message]",
@@ -1260,7 +1187,7 @@ export const helpContent: HelpContent = {
     "stratiki auth configure <provider> [--force]",
     "stratiki auth tools <provider>",
     "stratiki ingest <source|source-instance|all> [--scheduled] [--print] [--modelId <id>]",
-    "stratiki book init [--name <name>] [--force] [--mode <code|company>]",
+    "stratiki book init [--name <name>] [--force]",
     "stratiki cron list",
     "stratiki cron pause all",
     "stratiki cron resume all",
@@ -1276,10 +1203,6 @@ export const helpContent: HelpContent = {
       label: "stratiki code",
       description:
         "Run OpenWiki for the current repository, writing docs under repo openwiki/ and using GitHub Actions for recurrence.",
-    },
-    {
-      label: "stratiki company",
-      description: `Run Stratiki as your company brain over configured sources, writing to the Stratiki home.`,
     },
     {
       label: "stratiki personal",
@@ -1310,10 +1233,9 @@ export const helpContent: HelpContent = {
         "Run ingestion and wiki update runs for one connector, one source instance, or all configured sources.",
     },
     {
-      label:
-        "stratiki book init [--name <name>] [--force] [--mode <code|company>]",
+      label: "stratiki book init [--name <name>] [--force]",
       description:
-        "Seed the workspace System Book manifest with the U1-U7 coverage ontology. Defaults to code mode (repo openwiki/); use --mode company for Stratiki home.",
+        "Seed the workspace System Book manifest (openwiki/book.config.json) with the U1-U7 coverage ontology.",
     },
     {
       label: "stratiki cron list",
@@ -1372,9 +1294,9 @@ export const helpContent: HelpContent = {
         "Update existing Stratiki documentation. Defaults to code mode; use personal to update the local personal brain.",
     },
     {
-      label: "--mode <personal|code|company>",
+      label: "--mode <personal|code>",
       description:
-        "Choose the personal brain (local, over configured sources), the code brain (repository docs), or the company brain (company knowledge).",
+        "Choose the personal brain (local, over configured sources) or the code brain (repository docs).",
     },
     {
       label: "-l, --language <locale>",
@@ -1428,11 +1350,10 @@ export const helpContent: HelpContent = {
   examples: [
     "stratiki",
     "stratiki --init",
-    "stratiki company --init",
     "stratiki personal --init",
     "stratiki code --init",
     "stratiki --update",
-    "stratiki --update --mode company",
+    "stratiki --update --mode personal",
     'openwiki "What can you do?"',
     'openwiki -p "Summarize what OpenWiki can do"',
     "stratiki --modelId gpt-5.5",
