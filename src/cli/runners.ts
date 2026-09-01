@@ -430,9 +430,15 @@ export async function runStrategyCommand(
   const { parseDecisionSeed } = await import("../strategy/parser.js");
   const { decomposeDecision } = await import("../strategy/decomposer.js");
   const { FileStrategyStore } = await import("../strategy/store.js");
-  const { openWikiStrategyDir } = await import("../config/openwiki-home.js");
-  const bookDir = path.join(process.cwd(), "openwiki");
-  const store = new FileStrategyStore(openWikiStrategyDir);
+  const {
+    ensureStratikiHome,
+    getStratikiCompanyWikiDir,
+    getStratikiStrategyDir,
+  } = await import("../config/openwiki-home.js");
+
+  const strategyDir = getStratikiStrategyDir();
+  const companyWikiDir = getStratikiCompanyWikiDir();
+  const store = new FileStrategyStore(strategyDir);
 
   if (command.action === "list") {
     const decisions = await store.listDecisions();
@@ -458,9 +464,10 @@ export async function runStrategyCommand(
   }
 
   const decision = parseDecisionSeed({ description: command.description });
-  const index = await ContextIndex.buildFromDirectory(bookDir);
+  const index = await ContextIndex.buildFromDirectory(companyWikiDir);
   try {
     const result = decomposeDecision(decision, index);
+    await ensureStratikiHome();
     await store.saveDecision(result.decision);
     await store.saveGoals(result.goals);
 
