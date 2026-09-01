@@ -91,13 +91,9 @@ async function runStandardCommand(
   } else if (command.kind === "cron") {
     await runCronCommand(command);
   } else if (command.kind === "book") {
-<<<<<<< HEAD
     await runBookCommand(command, command.mode);
-=======
-    await runBookCommand(command);
   } else if (command.kind === "strategy") {
     await runStrategyCommand(command);
->>>>>>> 445f132 (feat(strategy): add minimal strategy layer on top of company brain)
   } else if (command.kind === "ingest") {
     await runIngestCommand(command);
   } else if (command.kind === "visualize") {

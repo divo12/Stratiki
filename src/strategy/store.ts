@@ -5,7 +5,7 @@ import type { Decision, Goal } from "./types.js";
  *
  * For the minimal viable implementation, we store decisions and goals
  * as simple JSON files in the Stratiki home directory under `strategy/`
- * (typically `~/.stratiki/strategy/` or `~/.openwiki/strategy/`).
+ * (typically `~/.stratiki/strategy/`).
  */
 
 export interface StrategyStore {
