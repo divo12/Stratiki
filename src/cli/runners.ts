@@ -21,8 +21,8 @@ import { CONNECTOR_IDS, isConnectorId } from "../connectors/registry.js";
 import {
   openWikiBookDbPath,
   openWikiHomeDir,
-  stratikiHomeDir,
-  stratikiBookDbPath,
+  getStratikiHomeDir,
+  getStratikiBookDbPath,
 } from "../config/openwiki-home.js";
 import { resolveConfiguredProvider } from "../config/constants.js";
 import {
@@ -400,10 +400,10 @@ export async function runBookCommand(
 ): Promise<void> {
   const bookDir =
     mode === "company"
-      ? path.join(stratikiHomeDir, "openwiki")
+      ? path.join(getStratikiHomeDir(), "openwiki")
       : path.join(process.cwd(), "openwiki");
   const bookDbPath =
-    mode === "company" ? stratikiBookDbPath : openWikiBookDbPath;
+    mode === "company" ? getStratikiBookDbPath() : openWikiBookDbPath;
 
   if (command.action === "init") {
     await initBookManifest(bookDir, command);

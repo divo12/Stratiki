@@ -66,12 +66,8 @@ export function getStratikiHomeDisplayPath(
 }
 
 export const openWikiHomeDir = resolveOpenWikiHomeDir();
-export const stratikiHomeDir = resolveStratikiHomeDir();
 export const openWikiHomeDisplayPath = getOpenWikiHomeDisplayPath();
-export const stratikiHomeDisplayPath = getStratikiHomeDisplayPath();
 export const openWikiConnectorsDir = path.join(openWikiHomeDir, "connectors");
-export const stratikiCompanyWikiDir = path.join(stratikiHomeDir, "wiki");
-export const stratikiBookDbPath = path.join(stratikiHomeDir, "book.db");
 export const openWikiConversationHistoryDir = path.join(
   openWikiHomeDir,
   "conversation_history",
@@ -81,9 +77,34 @@ export const openWikiBookDbPath = path.join(openWikiHomeDir, "book.db");
 export const openWikiSkillsDir = path.join(openWikiHomeDir, "skills");
 export const openWikiConnectorsDisplayPath = `${openWikiHomeDisplayPath}/connectors`;
 export const openWikiLocalWikiDisplayPath = `${openWikiHomeDisplayPath}/wiki`;
-export const stratikiCompanyWikiDisplayPath = `${stratikiHomeDisplayPath}/wiki`;
 export const openWikiSkillsDisplayPath = `${openWikiHomeDisplayPath}/skills`;
 export const openWikiEnvDisplayPath = `${openWikiHomeDisplayPath}/.env`;
+
+// Stratiki getters - lazy to avoid homedir() during module init
+let _stratikiHomeDir: string | undefined;
+let _stratikiCompanyWikiDir: string | undefined;
+let _stratikiBookDbPath: string | undefined;
+
+export function getStratikiHomeDir(): string {
+  if (_stratikiHomeDir === undefined) {
+    _stratikiHomeDir = resolveStratikiHomeDir();
+  }
+  return _stratikiHomeDir;
+}
+
+export function getStratikiCompanyWikiDir(): string {
+  if (_stratikiCompanyWikiDir === undefined) {
+    _stratikiCompanyWikiDir = path.join(getStratikiHomeDir(), "wiki");
+  }
+  return _stratikiCompanyWikiDir;
+}
+
+export function getStratikiBookDbPath(): string {
+  if (_stratikiBookDbPath === undefined) {
+    _stratikiBookDbPath = path.join(getStratikiHomeDir(), "book.db");
+  }
+  return _stratikiBookDbPath;
+}
 
 export function getConnectorDir(connectorId: string): string {
   return path.join(openWikiConnectorsDir, connectorId);
@@ -116,10 +137,12 @@ export async function ensureOpenWikiHome(): Promise<void> {
 }
 
 export async function ensureStratikiHome(): Promise<void> {
-  await mkdir(stratikiHomeDir, { recursive: true, mode: 0o700 });
-  await chmodIfExists(stratikiHomeDir, 0o700);
-  await restrictDirToCurrentUser(stratikiHomeDir);
-  await mkdir(stratikiCompanyWikiDir, { recursive: true, mode: 0o700 });
+  const homeDir = getStratikiHomeDir();
+  const wikiDir = getStratikiCompanyWikiDir();
+  await mkdir(homeDir, { recursive: true, mode: 0o700 });
+  await chmodIfExists(homeDir, 0o700);
+  await restrictDirToCurrentUser(homeDir);
+  await mkdir(wikiDir, { recursive: true, mode: 0o700 });
 }
 
 export async function ensureConnectorHome(connectorId: string): Promise<void> {
